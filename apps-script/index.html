@@ -24,7 +24,7 @@
   body{background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
        font-size:15px; line-height:1.4; -webkit-font-smoothing:antialiased; height:100vh; overflow:hidden}
   .wrap{max-width:460px; margin:0 auto; height:100vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
-        display:flex; flex-direction:column; padding-bottom:150px}
+        display:flex; flex-direction:column; padding-bottom:calc(84px + env(safe-area-inset-bottom))}
   .head{display:flex; align-items:baseline; justify-content:space-between; padding:18px 20px 8px}
   .logo{font-weight:800; letter-spacing:-.3px; font-size:19px}
   .logo b{color:var(--spalle)}
@@ -68,9 +68,8 @@
   .mmap .lg{display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:10px}
   .mmap .chip{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--muted)}
   .mmap .chip i{width:11px; height:11px; border-radius:3px; display:inline-block; flex:none}
-  /* fixed save + nav */
-  .savebar{position:fixed; left:50%; transform:translateX(-50%); bottom:66px; width:100%; max-width:460px; padding:0 16px; pointer-events:none}
-  .save{width:100%; pointer-events:auto; background:var(--spalle); color:#1a1206; border-radius:16px; padding:15px; font-weight:800; font-size:16px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 8px 24px rgba(0,0,0,.4)}
+  /* pulsante Salva: in fondo al contenuto (scorre con la pagina), + nav fissa */
+  .save{width:100%; background:var(--spalle); color:#1a1206; border-radius:16px; padding:15px; font-weight:800; font-size:16px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 8px 24px rgba(0,0,0,.35); margin-top:14px}
   .save:active{transform:scale(.99)}
   .nav{position:fixed; left:50%; transform:translateX(-50%); bottom:0; width:100%; max-width:460px; background:var(--panel); border-top:1px solid var(--line); display:flex; padding-bottom:env(safe-area-inset-bottom)}
   .nav button{flex:1; padding:9px 0; display:flex; flex-direction:column; align-items:center; gap:2px; color:var(--faint); font-size:11px; font-weight:600}
@@ -114,10 +113,6 @@
     <div class="sub">palestrina</div>
   </div>
   <div id="content" class="content"></div>
-</div>
-
-<div id="savebar" class="savebar" style="display:none">
-  <button class="save" data-act="saveSession"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span id="saveLbl">Salva sessione</span></button>
 </div>
 
 <div class="nav" id="nav"></div>
@@ -359,7 +354,6 @@ function navHTML(){
 function render(){
   document.getElementById("nav").innerHTML=navHTML();
   const c=document.getElementById("content");
-  document.getElementById("savebar").style.display = S.view==="allena" ? "block" : "none";
   if(S.view==="allena") c.innerHTML=renderAllena();
   else if(S.view==="storico") c.innerHTML=renderStorico();
   else if(S.view==="misure") c.innerHTML=renderMisure();
@@ -385,6 +379,7 @@ function renderAllena(){
         '<button class="pm" data-plus="'+k+'">+</button></div>'+
       '</div></div>');}).join("");
   h+='<input class="note" data-notefield placeholder="Nota (facoltativa): come è andata…" value="'+(d.note||"").replace(/"/g,"&quot;")+'">';
+  h+='<button class="save" data-act="saveSession"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span id="saveLbl">Salva sessione</span></button>';
   return h;
 }
 
