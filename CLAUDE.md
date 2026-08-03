@@ -6,6 +6,8 @@ Questo file serve a Claude (o Claude Code) per lavorare su questo repo mantenend
 
 **Palestrina** è una web-app personale per registrare gli allenamenti, usata dal telefono **durante** la sessione. È nata per il programma *Upper Body 90* di Flavio (sviluppo parte alta con una macchina multi-gym + panca + manubri 3 kg + bici) ma deve restare **generica**: nuovi programmi si aggiungono come file dati, senza toccare la logica.
 
+Il **90** in "Upper Body 90" indica la **durata del programma: 90 giorni (12 settimane)**.
+
 Il **frontend** è una PWA statica pubblicata su **GitHub Pages**; il **backend** è un Google Apps Script che espone un'**API JSON** su un Foglio Google. iPhone e PC che aprono il link vedono gli stessi dati.
 
 ## Principi da rispettare
