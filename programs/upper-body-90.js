@@ -1,9 +1,9 @@
-<!-- =============================================================
-     PROGRAMMA: Upper Body 90 — incluso in index.html via include().
-     Un "programma" è solo un oggetto dati. Per crearne uno nuovo:
-     copia questo file, cambia id/name/EX/WK e cambia l'include.
-     ============================================================= -->
-<script>
+/* =============================================================
+ *  PROGRAMMA: Upper Body 90
+ *  Un "programma" è solo un oggetto dati. Per crearne uno nuovo:
+ *  copia questo file, cambia id/name/EX/WK e caricalo da index.html.
+ *  Vedi CLAUDE.md → "Aggiungere un nuovo programma".
+ * ============================================================= */
 window.PROGRAM = {
   id: "upper-body-90",
   name: "Upper Body 90",
@@ -51,4 +51,3 @@ window.PROGRAM = {
     B:{title:"Tirata & core", items:["fly","lat","frontdelt","reardelt","curlSeat","tricep","oblique","crunchRev"]},
   },
 };
-</script>

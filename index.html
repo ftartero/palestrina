@@ -1,15 +1,17 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<base target="_top">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Palestrina</title>
+<title>Upper Body 90</title>
 <meta name="theme-color" content="#14181D">
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Palestrina">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
 <style>
   :root{
     --bg:#14181D; --panel:#1B2129; --panel2:#222A33; --line:#2C3742;
@@ -103,6 +105,9 @@
   .dot{width:7px; height:7px; border-radius:999px; background:var(--faint)}
   .dot.ok{background:var(--dorso)} .dot.err{background:#E06A6A} .dot.busy{background:var(--spalle)}
   .empty{text-align:center; padding:70px 24px; color:var(--muted)}
+  .config{margin:8px 0 12px; padding:16px; border:1px solid var(--spalle); border-radius:14px; background:var(--panel)}
+  .config label{display:block; font-size:12px; color:var(--faint); margin:10px 0 4px; text-transform:uppercase; letter-spacing:1px}
+  .config input{width:100%; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:10px; padding:11px; font-size:14px; outline:none}
   code{background:var(--panel2); padding:1px 5px; border-radius:5px; font-size:13px}
 </style>
 </head>
@@ -119,8 +124,8 @@
 <div class="rest" id="rest"></div>
 <div class="toast" id="toast"></div>
 
-<!-- programma attivo, incluso lato server (Apps Script) -->
-<?!= include('program') ?>
+<!-- programma attivo (file statico) -->
+<script src="programs/upper-body-90.js"></script>
 <script>
 /* ===================== PROGRAMMA (incluso via HtmlService) ===================== */
 const P = window.PROGRAM || {ex:{},workouts:{A:{title:"A",items:[]},B:{title:"B",items:[]}},baseline:{},height:1.73,targetFat:12,name:"Programma"};
@@ -147,28 +152,42 @@ const freshDraft=()=>{const l=lastVals();const v={};Object.keys(EX).forEach(k=>v
   const wk=S.sessions.length?(S.sessions[S.sessions.length-1].type==="A"?"B":"A"):"A";
   return {workout:wk, date:today(), values:v, done:{}, note:""};};
 
-/* ---------- sync (via google.script.run, same-origin, senza token) ---------- */
-function gsRun(fn, arg){
-  return new Promise(function(resolve, reject){
-    if(!(window.google && google.script && google.script.run)){ reject(new Error("no-bridge")); return; }
-    google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fn](arg);
-  });
+/* ---------- config (URL backend + token), salvata in localStorage ---------- */
+function cfgRead(){ try{ return JSON.parse(localStorage.getItem("ub90_cfg")||"null")||{}; }catch(e){ return {}; } }
+function cfgWrite(){ try{ localStorage.setItem("ub90_cfg", JSON.stringify(CFG)); }catch(e){} }
+let CFG = cfgRead();
+function configured(){ return CFG && typeof CFG.url==="string" && CFG.url.indexOf("http")===0 && !!CFG.token; }
+function saveConfig(){
+  const url=(val("cfg_url")||"").trim(), token=(val("cfg_token")||"").trim();
+  if(url.indexOf("http")!==0 || !token){ toast("Metti URL /exec e token"); return; }
+  CFG={url:url, token:token}; cfgWrite(); toast("Configurazione salvata"); render(); pull();
 }
+
+/* ---------- sync (fetch verso Apps Script; POST text/plain = nessun preflight) ---------- */
 async function pull(){
+  if(!configured()){ render(); return; }
   setSync("busy","sincronizzo…");
   try{
-    const d = await gsRun("getState");
+    const r = await fetch(CFG.url+"?token="+encodeURIComponent(CFG.token));
+    const d = await r.json();
+    if(d && d.error) throw new Error(d.error);
     S.sessions = Array.isArray(d.sessions)?d.sessions:[];
     S.measures = Array.isArray(d.measures)?d.measures:[];
     if(!S.measures.length){ S.measures=[BASELINE]; push(); }
     cache.write(); setSync("ok","sincronizzato "+hhmm()); render();
-  }catch(e){ setSync("err","offline"); }
+  }catch(e){
+    if(String(e.message)==="unauthorized"){ setSync("err","token errato"); render(); }
+    else setSync("err","offline");
+  }
 }
 async function push(){
   cache.write();
+  if(!configured()){ setSync("err","non configurato"); return; }
   setSync("busy","salvo…");
   try{
-    await gsRun("saveState", {sessions:S.sessions, measures:S.measures});
+    const r = await fetch(CFG.url+"?token="+encodeURIComponent(CFG.token), {method:"POST", body:JSON.stringify({sessions:S.sessions, measures:S.measures})});
+    const d = await r.json().catch(function(){ return {}; });
+    if(d && d.error) throw new Error(d.error);
     setSync("ok","sincronizzato "+hhmm());
   }catch(e){ setSync("err","errore — riprova"); }
   if(S.view==="misure"||S.view==="info") render();
@@ -349,9 +368,21 @@ function navHTML(){
     '<button data-nav="'+id+'" class="'+(S.view===id?"on":"")+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+svgIcons[id]+'</svg>'+l+'</button>').join("");
 }
 
+function configForm(){
+  return '<label>URL Web App (/exec)</label><input id="cfg_url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" value="'+(CFG.url||"").replace(/"/g,"&quot;")+'">'+
+    '<label>Token</label><input id="cfg_token" placeholder="la-tua-parola" value="'+(CFG.token||"").replace(/"/g,"&quot;")+'">'+
+    '<button class="btn" data-act="saveConfig" style="background:var(--spalle);color:#1a1206;margin-top:14px">Salva e sincronizza</button>';
+}
+function configCard(){
+  return '<div class="config"><b>Collega il tuo Foglio</b>'+
+    '<p class="small muted" style="margin:6px 0 4px">Incolla l\'URL della Web App (finisce con <code>/exec</code>) e la tua parola-token. Restano solo su questo dispositivo (non sul sito).</p>'+
+    configForm()+'</div>';
+}
+
 function render(){
   document.getElementById("nav").innerHTML=navHTML();
   const c=document.getElementById("content");
+  if(!configured() && S.view!=="info"){ c.innerHTML=configCard(); return; }
   if(S.view==="allena") c.innerHTML=renderAllena();
   else if(S.view==="storico") c.innerHTML=renderStorico();
   else if(S.view==="misure") c.innerHTML=renderMisure();
@@ -458,6 +489,8 @@ function renderInfo(){
     '<div class="small muted" style="margin-top:6px">I dati stanno nel tuo Foglio Google: iPhone e PC che aprono questo indirizzo vedono le stesse cose.</div>'+
     '<button class="btn" data-act="pull" style="background:var(--panel2);color:var(--text);border:1px solid var(--line);margin-top:10px">↻ Sincronizza ora</button>'+
     '<button class="btn" data-act="backup" style="background:transparent;color:var(--muted);margin-top:8px">Scarica backup .json</button></div>';
+  h+='<div class="config"><div style="font-weight:700;margin-bottom:2px">Collegamento al Foglio</div>'+
+    '<div class="tiny faint">URL e token restano solo su questo dispositivo.</div>'+configForm()+'</div>';
   h+='<div class="card" style="padding:16px;margin-bottom:12px"><div style="font-weight:700;margin-bottom:10px">Timer di recupero</div>'+
     '<div class="row" style="justify-content:space-between;align-items:center"><span class="small muted">Durata predefinita</span>'+
     '<div class="seg2">'+[60,90,120].map(v=>'<button data-restdef="'+v+'" class="'+(restDefaultGet()===v?"on":"")+'">'+v+'s</button>').join("")+'</div></div>'+
@@ -487,7 +520,7 @@ document.addEventListener("click",e=>{
   else if(t.dataset.open){ const d=document.getElementById("det_"+t.dataset.open); if(d) d.style.display=d.style.display==="none"?"block":"none"; }
   else if(t.dataset.delses){ delSession(Number(t.dataset.delses)); }
   else if(t.dataset.delmis){ delMeasure(Number(t.dataset.delmis)); }
-  else if(t.dataset.act){ ({saveSession,addMeasure,backup,pull})[t.dataset.act](); }
+  else if(t.dataset.act){ ({saveSession,addMeasure,backup,pull,saveConfig})[t.dataset.act](); }
   else if(t.dataset.rest){ const a=t.dataset.rest; if(a==="minus")restAdj(-15); else if(a==="plus")restAdj(15); else if(a==="toggle")restToggle(); else if(a==="close")restClose(); }
   else if(t.dataset.restdef){ restDefaultSet(Number(t.dataset.restdef)); render(); }
   else if(t.dataset.autorest){ autoRestSet(!autoRestGet()); render(); }
@@ -505,6 +538,8 @@ document.addEventListener("input",e=>{
   const nm=(P.name||"Palestrina").split(" ");
   const lg=document.getElementById("logo"); if(lg) lg.innerHTML=nm.slice(0,-1).join(" ")+" <b>"+nm.slice(-1)+"</b>";
   document.title=P.name||"Palestrina";
+  // service worker (solo su http/https): installabile + offline
+  if("serviceWorker" in navigator && location.protocol.indexOf("http")===0){ navigator.serviceWorker.register("sw.js").catch(function(){}); }
   const cx=cache.read();
   if(cx){ S.sessions=cx.sessions||[]; S.measures=cx.measures||[]; }
   if(!S.measures.length) S.measures=[BASELINE];

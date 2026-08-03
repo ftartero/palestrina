@@ -6,45 +6,50 @@ Questo file serve a Claude (o Claude Code) per lavorare su questo repo mantenend
 
 **Palestrina** è una web-app personale per registrare gli allenamenti, usata dal telefono **durante** la sessione. È nata per il programma *Upper Body 90* di Flavio (sviluppo parte alta con una macchina multi-gym + panca + manubri 3 kg + bici) ma deve restare **generica**: nuovi programmi si aggiungono come file dati, senza toccare la logica.
 
-L'app è **servita da Google Apps Script** (`HtmlService`) dallo stesso progetto del Foglio che fa da database: nessun hosting esterno, **nessun token nel client**, accesso ristretto al proprietario. (Una precedente variante statica/PWA è stata ritirata.)
+Il **frontend** è una PWA statica pubblicata su **GitHub Pages**; il **backend** è un Google Apps Script che espone un'**API JSON** su un Foglio Google. iPhone e PC che aprono il link vedono gli stessi dati.
 
 ## Principi da rispettare
 
-- **Zero dipendenze nel frontend.** HTML/CSS/JS vanilla, niente framework, niente build, niente CDN. L'app è `apps-script/index.html` (più `apps-script/program.html`, incluso lato server).
+- **Zero dipendenze nel frontend.** `index.html` è vanilla HTML/CSS/JS, un solo file. Niente framework, niente build, niente CDN. Deve funzionare aperto da `file://` e da un host statico.
 - **Mobile-first, uso "sudato".** Celle grandi, tasti `+`/`−` da 50px, tocco facile, poco scrolling per esercizio. Testo e UI in **italiano**.
 - **Codice colore per muscolo** (CSS var `--petto --dorso --spalle --braccia --core`): è la firma visiva, richiama il cartello della macchina. Mantienilo.
-- **Dati dell'utente sacri.** Non introdurre modifiche che possano perdere `sessions`/`measures`. La fonte autorevole è il Foglio; il `localStorage` è solo cache/uso in-sessione.
+- **Dati dell'utente sacri.** Non introdurre modifiche che possano perdere `sessions`/`measures`. La fonte autorevole è il Foglio; il `localStorage` è solo cache/uso offline.
+- **CORS/compatibilità:** il POST al backend deve restare **`Content-Type: text/plain`** (nessun header custom, nessun `application/json`): così non scatta il preflight e la chiamata cross-origin verso Apps Script funziona. Il GET è semplice, con il token in query string.
+- **Nessun segreto nel repo.** Il repo è **pubblico**: `config.js`/token non si committano mai. Il token vive in `localStorage` (client) e nelle Proprietà script (backend).
 - **Contenuti di allenamento e alimentazione: moderati e basati su evidenze.** Range 8–15 rip, volume ~10 serie/gruppo/sett, proteine ~1.6–2.0 g/kg, dimagrimento lento 0.25–0.4 kg/sett, obiettivo estetico sano (uomo ~12% grasso). **Mai** suggerire diete estreme, deficit aggressivi, digiuni spinti o toni ossessivi. In caso di dubbio, resta prudente e rimanda al medico.
 
 ## Architettura
 
 ```
-[ Browser (iPhone/PC), loggato in Google — accesso "Solo io" ]
+[ PWA statica su GitHub Pages ]  index.html + programs/*.js + manifest + sw + icons
+        |   config (URL /exec + token) salvata in localStorage — MAI nei file
         |
-        |  doGet()                            → HtmlService serve index.html
-        |                                        (+ program.html via include('program'))
-        |  google.script.run.getState()       → legge {sessions, measures}
-        |  google.script.run.saveState(tutto) → salva TUTTO lo stato
+        |  GET  ?token=…                 → legge {sessions, measures}
+        |  POST body=JSON  (text/plain)  → salva tutto lo stato
         v
-[ Google Apps Script — apps-script/Codice.gs ]  <-->  [ Foglio Google nel Drive dell'utente ]
-        Esegui come: Io · Accesso: Solo io            DB!A1 = JSON autorevole
-                                                       fogli "Sessioni"/"Misure" = copia leggibile
+[ Google Apps Script Web App ]  <-->  [ Foglio Google nel Drive dell'utente ]
+        (apps-script/Codice.gs)          DB!A1 = JSON autorevole
+        Esegui come: Io · Accesso:        fogli "Sessioni"/"Misure" = copia leggibile
+        Chiunque · token in Proprietà
+        script (chiave "SECRET")
 ```
 
-- **Sync:** all'avvio l'app mostra subito la cache locale, poi chiama `getState()` e si allinea al Foglio. Ogni azione (salva sessione, aggiungi/elimina misura) chiama `saveState()` con **tutto** lo stato. Il server riscrive `DB!A1` e rigenera i fogli leggibili (`mirror`).
-- **Niente token, niente CORS:** `google.script.run` è same-origin; la sicurezza è l'**accesso Google** del deployment (vedi "Sicurezza"). Non reintrodurre `fetch`/token: sono superflui e romperebbero il modello.
-- **Programma incluso lato server:** `index.html` usa `<?!= include('program') ?>` e `Codice.gs` definisce `include(name)`. Nell'editor Apps Script i file HTML si chiamano esattamente `index` e `program`.
-- **Non gira da `file://`:** dipende dal bridge `google.script.run`, che esiste solo dentro Apps Script (l'app è in un iframe sandbox: niente service worker, niente PWA offline). Per i test locali si **stubba** `google.script.run` (vedi "Test").
+- **Sync:** all'avvio l'app mostra la cache locale, poi fa `pull()` (GET) e si allinea al Foglio. Ogni azione (salva sessione, aggiungi/elimina misura) chiama `push()` (POST con **tutto** lo stato). Il server riscrive `DB!A1` e rigenera i fogli leggibili (`mirror`).
+- **Config lato client:** al primo avvio l'app chiede **URL `/exec`** e **token** (schermata di config e sezione in Guida); li salva in `localStorage` (`ub90_cfg`). Non finiscono in nessun file pubblicato.
+- **Auth lato server:** `authorized()` confronta `?token=` con la Proprietà script `SECRET`. Endpoint pubblico ("Chiunque") ma inutile senza token.
 
 ## File
 
 | File | Ruolo |
 |---|---|
-| `apps-script/Codice.gs` | `doGet` (serve l'app), `include`, `getState`/`saveState`, `readDB`/`writeDB`/`mirror`. |
-| `apps-script/index.html` | Tutta l'app: stile, stato, render, sync via `google.script.run`. Non contiene dati di programma. |
-| `apps-script/program.html` | Il programma attivo come `<script>` incluso in `index.html`. |
-| `apps-script/LEGGIMI-deploy.md` | Come incollare i file nell'editor e distribuire (Accesso: Solo io). |
-| `README.md`, `LICENSE` | Descrizione e licenza. |
+| `index.html` | Tutta l'app: stile, stato, render, sync via `fetch`, schermata di config. Non contiene dati di programma. |
+| `programs/*.js` | Un programma = `window.PROGRAM = { id, name, height, targetFat, baseline, ex, workouts }`. |
+| `manifest.webmanifest`, `sw.js`, `icons/` | PWA: installabile e offline. |
+| `apps-script/Codice.gs` | Backend API: `doGet`/`doPost`, token da Proprietà script, DB + mirror. |
+| `apps-script/appsscript.json` | Manifest Apps Script: `access: ANYONE_ANONYMOUS`, `executeAs: USER_DEPLOYING`. |
+| `apps-script/LEGGIMI-deploy.md` | Setup backend + Secret CI. |
+| `.github/workflows/deploy-pages.yml` | Pubblica il frontend su Pages a ogni push (auto). |
+| `.github/workflows/deploy-appsscript.yml` | Deploya il backend con `clasp` a ogni push (auto). |
 
 ## Modello dati
 
@@ -57,80 +62,72 @@ Le chiavi degli esercizi (`exKey`) sono condivise fra schede quando l'esercizio 
 
 ## Aggiungere un nuovo programma
 
-1. Copia `apps-script/program.html` e ridefinisci `window.PROGRAM` (`id`, `name`, `height`, `targetFat`, `baseline`, `ex`, `workouts`). Usa le CSS var esistenti per i colori muscolo.
-2. Se **aggiungi o rinomini chiavi esercizio**, aggiorna anche `COLS` in `apps-script/Codice.gs`: serve alla copia leggibile del foglio "Sessioni" (accoppiamento voluto ma da non dimenticare).
-3. Ridistribuisci (nuova versione) e testa.
+1. Copia `programs/upper-body-90.js` in `programs/<nome>.js`, cambia `id`/`name`/`height`/`targetFat`/`baseline`/`ex`/`workouts`. Usa le CSS var esistenti per i colori muscolo.
+2. In `index.html` cambia il tag `<script src="programs/upper-body-90.js">` verso il nuovo file (o introduci un selettore — in roadmap).
+3. Se **aggiungi o rinomini chiavi esercizio**, aggiorna anche `COLS` in `apps-script/Codice.gs` (per la copia leggibile del foglio "Sessioni").
+4. Testa.
 
-**Backend condiviso:** oggi tutti i programmi userebbero lo stesso Foglio. Se in futuro servono più programmi contemporaneamente, aggiungi un campo `program` ai record e filtra, **oppure** usa un Foglio/Deployment per programma. Non mescolare a caso: decidi e documenta. Un **selettore di programma** nell'UI è in roadmap.
+**Backend condiviso:** oggi tutti i programmi userebbero lo stesso Foglio. Se in futuro servono più programmi contemporaneamente, aggiungi un campo `program` ai record e filtra, **oppure** usa un Foglio/Deployment per programma. Non mescolare a caso: decidi e documenta.
 
 ## Sicurezza
 
-- La protezione è l'**accesso Google del deployment**. Distribuisci con **Esegui come: Io** e **Chi ha accesso: Solo io** → solo il tuo account, loggato, può aprire l'app e chiamare `getState`/`saveState`. **Nessun token nel client, nessun segreto da pubblicare.**
-- **Esegui come: Io** è necessario perché lo script scrive sul *tuo* Foglio.
-- Cambiare accesso o codice = **ridistribuire**: Gestisci distribuzioni → ✏️ → Versione: Nuova. Senza "Nuova versione" l'URL serve la versione vecchia.
+- Il repo è **pubblico**: **mai committare** token/URL. Il token sta nel **`localStorage`** del client (schermata di config) e nella **Proprietà script `SECRET`** del backend (Impostazioni progetto → Proprietà script). L'URL `/exec` non è segreto (senza token risponde `unauthorized`).
+- L'endpoint è pubblicato come "Chiunque": la protezione è il **token**. Adeguato per dati personali a basso rischio, non per dati sensibili. **Usa un token lungo e non banale.**
+- Cambiare token = aggiornare la Proprietà `SECRET` e il token nell'app (Guida → Collegamento). Il codice del backend si ridistribuisce da solo (CI), ma la Proprietà script si imposta a mano una volta.
 
 ## Test (obbligatorio prima di consegnare modifiche)
 
-Non esiste build: si verifica in un browser headless controllando la console. **Atteso: nessun errore JS.** Si simula l'`include` del programma e si **stubba** `google.script.run` (in questo ambiente il browser è già presente; senza `executable_path` Playwright usa quello installato):
+Non esiste build: si verifica caricando l'app in un browser headless con il **backend mockato** (route su `script.google.com`). **Atteso: nessun errore JS.**
 
 ```python
 # richiede playwright + chromium
-import os, tempfile
+import os
 from playwright.sync_api import sync_playwright
-BASE="apps-script"
-idx=open(f"{BASE}/index.html",encoding="utf-8").read()
-prog=open(f"{BASE}/program.html",encoding="utf-8").read()
-idx=idx.replace("<?!= include('program') ?>", prog)         # 1) include
-assert "<?" not in idx, "scriptlet Apps Script non risolti"
-STUB="""<script>
-window.__calls=[];window.__store={sessions:[],measures:[]};
-window.google={script:{run:(function(){function r(){var s=function(){},f=function(){};var a={
- withSuccessHandler:function(fn){s=fn;return a},withFailureHandler:function(fn){f=fn;return a},
- getState:function(){window.__calls.push('getState');setTimeout(function(){s(JSON.parse(JSON.stringify(window.__store)))},5)},
- saveState:function(p){window.__calls.push('saveState');window.__store={sessions:p.sessions||[],measures:p.measures||[]};setTimeout(function(){s({ok:true})},5)}};return a}
- return {withSuccessHandler:function(fn){return r().withSuccessHandler(fn)},withFailureHandler:function(fn){return r().withFailureHandler(fn)},
- getState:function(){return r().getState()},saveState:function(p){return r().saveState(p)}}})()}};
-</script>"""
-idx=idx.replace("<head>","<head>\n"+STUB,1)                 # 2) stub bridge
-t=tempfile.NamedTemporaryFile("w",suffix=".html",dir=BASE,delete=False,encoding="utf-8");t.write(idx);t.close()
-errs=[]
-try:
-    with sync_playwright() as p:
-        b=p.chromium.launch();pg=b.new_page(viewport={'width':420,'height':820})
-        pg.on('pageerror',lambda e:errs.append(str(e)))
-        pg.on('console',lambda m:errs.append(m.text) if m.type=='error' else None)
-        pg.goto('file://'+t.name);pg.wait_for_timeout(400)
-        for nav in ['storico','misure','info','allena']:
-            pg.click(f'[data-nav={nav}]');pg.wait_for_timeout(120)
-        calls=pg.evaluate('window.__calls');b.close()
-finally: os.unlink(t.name)
-print('ERRORI:', [e for e in errs if 'net::ERR' not in e] or 'nessuno')
-print('bridge:', calls)   # atteso: getState + almeno un saveState (seed baseline)
+errs=[]; store={"sessions":[],"measures":[]}
+def handle(route, req):
+    import json
+    if req.method=="POST":
+        try: store.update(json.loads(req.post_data or "{}"))
+        except: pass
+        route.fulfill(status=200, content_type="application/json", body='{"ok":true}')
+    else:
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(store))
+with sync_playwright() as p:
+    b=p.chromium.launch(); pg=b.new_page(viewport={'width':390,'height':820})
+    pg.on('pageerror', lambda e: errs.append(str(e)))
+    pg.on('console', lambda m: errs.append(m.text) if m.type=='error' else None)
+    pg.route('**/script.google.com/**', handle)
+    pg.goto('file://'+os.getcwd()+'/index.html'); pg.wait_for_timeout(400)
+    pg.fill('#cfg_url','https://script.google.com/macros/s/ABC/exec'); pg.fill('#cfg_token','x')
+    pg.click('[data-act=saveConfig]'); pg.wait_for_timeout(400)
+    for nav in ['storico','misure','info','allena']:
+        pg.click(f'[data-nav={nav}]'); pg.wait_for_timeout(120)
+    b.close()
+print('ERRORI:', [e for e in errs if 'net::ERR' not in e and 'manifest' not in e.lower()] or 'nessuno')
 ```
-Verifica a mano nell'app reale: `+`/`−`, spunta ✓, salva sessione, aggiungi/elimina misura, espandi nello storico.
+Verifica a mano: `+`/`−`, spunta ✓ (parte il timer), salva sessione, aggiungi/elimina misura, espandi storico. Deve funzionare **sia** da `file://` **sia** da http.
 
 ## Deploy
 
-**Automatico (CI):** il workflow `.github/workflows/deploy-appsscript.yml` usa `clasp` per caricare `apps-script/` nel progetto e aggiornare la Web App a ogni push su `main` (stesso URL `/exec`). Il manifest `apps-script/appsscript.json` fissa `access: MYSELF` / `executeAs: USER_DEPLOYING` (= Solo io / Esegui come Io). Setup una-tantum dei Secret (`CLASPRC_JSON`, `SCRIPT_ID`, variabile `DEPLOYMENT_ID`) e abilitazione dell'Apps Script API: vedi **`apps-script/LEGGIMI-deploy.md`**.
-
-**Manuale (fallback):** incolla `Codice.gs` + i file HTML `index`/`program` nell'editor del Foglio, **Distribuisci → Gestisci distribuzioni → Versione: Nuova**.
+- **Frontend (Pages) — automatico:** `.github/workflows/deploy-pages.yml` pubblica i file statici su GitHub Pages a ogni push. Repo **pubblico**; Pages si abilita dal workflow (`configure-pages` con `enablement`). Se cambi lo **shell** (`index.html`, programma, icone), **incrementa `V` in `sw.js`** per invalidare la cache PWA.
+- **Backend (Apps Script) — automatico:** `.github/workflows/deploy-appsscript.yml` usa `clasp` per aggiornare la Web App. **Una tantum:** Apps Script API attiva, Secret `CLASPRC_JSON`/`SCRIPT_ID`, variabile `DEPLOYMENT_ID`, e Proprietà script `SECRET`. Dettagli in `apps-script/LEGGIMI-deploy.md`.
 
 ## Git / branch
 
-Si lavora **sempre su `main`**: commit diretti sul ramo principale, niente branch di feature separati salvo richiesta esplicita. Commit piccoli e verificabili (test headless verde prima di committare).
+Si lavora **sempre su `main`**: commit diretti sul ramo principale, niente branch di feature separati salvo richiesta esplicita. Commit piccoli e verificabili (test headless verde prima di committare). Nessun segreto committato (il repo è pubblico).
 
 ## Funzioni recenti
 
-- **Timer di recupero**: parte da solo quando spunti ✓ un esercizio (durata predefinita 60/90/120s in Guida, disattivabile). Pill fissa con ±15s, pausa, chiudi; allarme sonoro (WebAudio) + vibrazione dove supportata (iOS Safari non vibra). Stato in `localStorage` (`ub90_rest`, `ub90_autorest`), non nel modello dati.
-- **Mappa muscoli**: in Allena, SVG inline fronte/retro che evidenzia i gruppi della scheda A/B coi colori muscolo. Le regioni si derivano dal campo `group` degli esercizi via `groupToRegions()` (keyword: petto/dorso/trapez/anterior/posterior/laterale/bicip/tricip/addome/obliqu). I deltoidi laterali illuminano le spalle su entrambe le viste.
+- **Timer di recupero**: parte da solo quando spunti ✓ un esercizio (durata 60/90/120s in Guida, disattivabile). Pill fissa con ±15s, pausa, chiudi; allarme sonoro (WebAudio) + vibrazione dove supportata (iOS Safari non vibra). Stato in `localStorage` (`ub90_rest`, `ub90_autorest`), non nel modello dati.
+- **Mappa muscoli**: in Allena, SVG inline fronte/retro (senza gambe) che evidenzia i gruppi della scheda A/B coi colori muscolo. Regioni derivate dal campo `group` via `groupToRegions()`; i deltoidi laterali illuminano le spalle su entrambe le viste.
 
 ## Idee / roadmap
 
 - Modifica di un record già salvato (oggi si può solo eliminare).
-- Selettore di programma nell'UI quando ci sarà più di un programma.
+- Selettore di programma nell'UI quando ci sarà più di un `programs/*.js`.
 - Grafico progressi carichi per esercizio; export CSV (oggi c'è già il backup JSON).
-- **Import automatico peso/%grasso da Garmin** (bilancia → Garmin Connect): non fattibile dentro Apps Script (auth complessa, niente API personale). Servirebbe un middleware schedulato con le credenziali Garmin che scrive nel Foglio. Idea parcheggiata.
+- **Import automatico peso/%grasso da Garmin** (bilancia → Garmin Connect): non fattibile direttamente (auth complessa, niente API personale). Servirebbe un middleware schedulato con le credenziali Garmin che scrive nel Foglio. Idea parcheggiata.
 
 ## Stile delle risposte
 
-Codice ordinato, commenti in italiano, identificatori in inglese. Modifiche piccole e verificabili. Non aggiungere dipendenze. Se una richiesta rischia di rompere il modello dati o la sicurezza, **segnalalo invece di procedere**.
+Codice ordinato, commenti in italiano, identificatori in inglese. Modifiche piccole e verificabili. Non aggiungere dipendenze. Se una richiesta rischia di rompere il modello dati, la sicurezza o la compatibilità cross-origin, **segnalalo invece di procedere**.

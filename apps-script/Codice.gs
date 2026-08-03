@@ -1,42 +1,44 @@
 /******************************************************************
- *  PALESTRINA — backend + frontend serviti da Google Apps Script
- *  (HtmlService). L'app e i dati vivono nello stesso Foglio/Progetto:
- *  niente hosting esterno, niente token nel client.
+ *  PALESTRINA — backend (Google Apps Script) come API JSON
+ *  Il frontend (PWA su GitHub Pages) chiama:
+ *    GET  ?token=…                → { sessions, measures }
+ *    POST body=JSON (text/plain)  → salva tutto lo stato, { ok:true }
+ *  I dati vivono nel Foglio: DB!A1 = JSON autorevole; fogli
+ *  "Sessioni"/"Misure" = copia leggibile.
  *
- *  Deploy: Distribuisci → App web → Esegui come: Io ·
- *          Chi ha accesso: Solo io.
- *  Il client parla col server via google.script.run (same-origin).
+ *  SICUREZZA: il token NON è nel codice (repo pubblico). Va messo in
+ *  Impostazioni progetto → Proprietà script → chiave "SECRET".
+ *  Deploy: App web · Esegui come: Io · Chi ha accesso: Chiunque.
  ******************************************************************/
 
-/* Colonne (chiavi esercizio) per la copia leggibile nel foglio "Sessioni". */
 const COLS = ["bench","fly","lat","uprow","frontdelt","latraise","reardelt",
               "curlStd","curlSeat","tricep","abcrunch","oblique","plank","crunchRev"];
 
-/* ---- serve l'app ---- */
-function doGet(){
-  return HtmlService.createTemplateFromFile("index").evaluate()
-    .setTitle("Palestrina")
-    .addMetaTag("viewport", "width=device-width, initial-scale=1, viewport-fit=cover");
+function doGet(e){
+  if(!authorized(e)) return json({error:"unauthorized"});
+  return json(readDB());
 }
 
-/* Inietta un altro file (es. il programma) dentro l'HTML via <?!= include('program') ?> */
-function include(name){
-  return HtmlService.createHtmlOutputFromFile(name).getContent();
+function doPost(e){
+  if(!authorized(e)) return json({error:"unauthorized"});
+  var data;
+  try { data = JSON.parse((e.postData && e.postData.contents) || "{}"); }
+  catch(err){ return json({error:"bad json"}); }
+  var payload = { sessions: data.sessions || [], measures: data.measures || [] };
+  writeDB(payload);
+  mirror(payload);
+  return json({ok:true});
 }
 
-/* ---- API chiamate dal client (google.script.run) ---- */
-function getState(){
-  return readDB();
+/* ---- auth: token dalla proprietà di script "SECRET" ---- */
+function authorized(e){
+  var secret = PropertiesService.getScriptProperties().getProperty("SECRET");
+  return !!secret && e && e.parameter && e.parameter.token === secret;
 }
-function saveState(payload){
-  var p = { sessions: (payload && payload.sessions) || [],
-            measures: (payload && payload.measures) || [] };
-  writeDB(p);
-  mirror(p);
-  return { ok:true };
+function json(obj){
+  return ContentService.createTextOutput(JSON.stringify(obj))
+                       .setMimeType(ContentService.MimeType.JSON);
 }
-
-/* ---- helper foglio ---- */
 function sheet(name){
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   return ss.getSheetByName(name) || ss.insertSheet(name);
