@@ -129,7 +129,7 @@
 <script>
 /* ===================== PROGRAMMA (incluso via HtmlService) ===================== */
 const P = window.PROGRAM || {ex:{},workouts:{A:{title:"A",items:[]},B:{title:"B",items:[]}},baseline:{},height:1.73,targetFat:12,name:"Programma"};
-const APP_V = "v6";   // versione app mostrata in Guida (allineala a V in sw.js)
+const APP_V = "v7";   // versione app mostrata in Guida (allineala a V in sw.js)
 const EX = P.ex;
 const WK = P.workouts;
 const BASELINE = P.baseline;
@@ -423,23 +423,52 @@ function renderAllena(){
   return h;
 }
 
+function progressCard(){
+  const sorted=S.sessions.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const items=Object.keys(EX).map(k=>({k, vals:sorted.filter(s=>s.entries&&s.entries[k]!=null).map(s=>s.entries[k])})).filter(it=>it.vals.length>=2);
+  if(!items.length) return "";
+  return '<details class="card" style="padding:14px;margin-bottom:12px"><summary>Progressi carichi</summary><div style="margin-top:6px">'+
+    items.map(it=>{const e=EX[it.k], first=it.vals[0], last=it.vals[it.vals.length-1], d=last-first;
+      const col=d>0?"var(--dorso)":(d<0?"#E06A6A":"var(--muted)");
+      return '<div class="row" style="gap:10px;margin:10px 0;align-items:center">'+
+        '<div style="width:5px;height:34px;border-radius:9px;background:'+e.c+';flex:none"></div>'+
+        '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+e.name+'</div>'+
+        '<div class="tiny muted">'+fmt(last)+' '+e.unit+' · <span style="color:'+col+';font-weight:700">'+(d>0?"+":"")+fmt(d)+' '+e.unit+'</span></div></div>'+
+        spark(it.vals)+'</div>';}).join("")+'</div></details>';
+}
 function renderStorico(){
   if(!S.sessions.length) return '<div class="empty"><div style="font-weight:700;color:var(--text)">Ancora nessuna sessione</div><div class="small">Completa il primo allenamento e premi Salva. Comparirà qui.</div></div>';
   let h='<div class="small muted" style="margin:2px 4px 10px">'+S.sessions.length+' sessioni salvate</div>';
-  h+=S.sessions.slice().reverse().map(s=>{const it=WK[s.type].items;const col=s.type==="A"?"var(--petto)":"var(--dorso)";
-    let rows=it.map(k=>'<div class="row" style="justify-content:space-between; font-size:14px; margin:3px 0"><span class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+EX[k].name+'</span><span style="font-weight:700;margin-left:8px;white-space:nowrap">'+(s.entries[k]==null?"–":fmt(s.entries[k])+" "+EX[k].unit)+'</span></div>').join("");
+  h+=progressCard();
+  h+=S.sessions.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))).reverse().map(s=>{
+    const it=WK[s.type].items, col=s.type==="A"?"var(--petto)":"var(--dorso)", open=S.sOpen===s.id, editing=S.sEdit===s.id;
+    let detail;
+    if(editing){
+      detail=it.map(k=>'<div class="row" style="justify-content:space-between;margin:6px 0"><span class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+EX[k].name+'</span>'+
+        '<span class="row" style="gap:5px;flex:none"><input id="se_'+s.id+'_'+k+'" inputmode="decimal" value="'+(s.entries[k]==null?"":s.entries[k])+'" style="width:64px;text-align:right;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:5px 6px;font-size:14px;outline:none"><span class="faint tiny" style="width:26px">'+EX[k].unit+'</span></span></div>').join("")+
+        '<input id="sn_'+s.id+'" class="note" style="margin-top:8px" placeholder="Nota" value="'+(s.note||"").replace(/"/g,"&quot;")+'">'+
+        '<div class="row" style="gap:8px;margin-top:10px"><button data-ssave="'+s.id+'" class="btn" style="background:var(--dorso);color:#10160a">Salva</button><button data-scancel="1" class="btn" style="background:var(--panel2);color:var(--text);border:1px solid var(--line)">Annulla</button></div>';
+    } else {
+      let rows=it.map(k=>'<div class="row" style="justify-content:space-between; font-size:14px; margin:3px 0"><span class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+EX[k].name+'</span><span style="font-weight:700;margin-left:8px;white-space:nowrap">'+(s.entries[k]==null?"–":fmt(s.entries[k])+" "+EX[k].unit)+'</span></div>').join("");
+      detail='<div class="kv" style="grid-template-columns:1fr">'+rows+'</div>'+
+        (s.note?'<div class="small muted" style="margin-top:6px;font-style:italic">“'+s.note+'”</div>':'')+
+        '<div class="row" style="gap:8px;margin-top:10px"><button data-sedit="'+s.id+'" class="btn" style="background:var(--panel2);color:var(--text);border:1px solid var(--line)">✎ Modifica</button><button data-delses="'+s.id+'" class="btn" style="background:transparent;color:#E06A6A;border:1px solid var(--line)">Elimina</button></div>';
+    }
     return '<div class="card" style="margin-bottom:10px;overflow:hidden">'+
-      '<button data-open="'+s.id+'" class="row" style="width:100%;justify-content:space-between;padding:12px">'+
+      '<button data-sopen="'+s.id+'" class="row" style="width:100%;justify-content:space-between;padding:12px">'+
         '<span class="row" style="gap:12px"><span class="badge" style="background:'+col+'">'+s.type+'</span>'+
         '<span style="text-align:left"><span style="font-weight:700;display:block">'+ddmm(s.date)+' · '+WK[s.type].title+'</span>'+
         '<span class="tiny muted">'+it.filter(k=>s.entries[k]!=null).length+' esercizi'+(s.note?' · nota':'')+'</span></span></span>'+
-        '<span class="faint">▾</span></button>'+
-      '<div id="det_'+s.id+'" style="display:none;border-top:1px solid var(--line);padding:10px 12px">'+
-        '<div class="kv" style="grid-template-columns:1fr">'+rows+'</div>'+
-        (s.note?'<div class="small muted" style="margin-top:6px;font-style:italic">“'+s.note+'”</div>':'')+
-        '<button data-delses="'+s.id+'" class="small" style="color:#E06A6A;margin-top:10px">Elimina</button>'+
-      '</div></div>';}).join("");
+        '<span class="faint">'+(open?"▴":"▾")+'</span></button>'+
+      (open?'<div style="border-top:1px solid var(--line);padding:10px 12px">'+detail+'</div>':'')+
+    '</div>';}).join("");
   return h;
+}
+function saveSessionEdit(id){
+  const s=S.sessions.find(x=>x.id===id); if(!s) return;
+  WK[s.type].items.forEach(k=>{ const el=document.getElementById("se_"+id+"_"+k); if(el){ const v=el.value.trim(); s.entries[k]=(v===""||isNaN(Number(v)))?null:Number(v); } });
+  const n=document.getElementById("sn_"+id); if(n) s.note=n.value.trim();
+  S.sEdit=null; push(); toast("Sessione aggiornata"); render();
 }
 
 function renderMisure(){
@@ -544,14 +573,17 @@ function renderInfo(){
 
 /* ===================== EVENTI ===================== */
 document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-nav],[data-wk],[data-minus],[data-plus],[data-done],[data-open],[data-delses],[data-act],[data-rest],[data-restdef],[data-autorest],[data-mopen],[data-wedit]");
+  const t=e.target.closest("[data-nav],[data-wk],[data-minus],[data-plus],[data-done],[data-sopen],[data-sedit],[data-scancel],[data-ssave],[data-delses],[data-act],[data-rest],[data-restdef],[data-autorest],[data-mopen],[data-wedit]");
   if(!t) return;
   if(t.dataset.nav){ S.view=t.dataset.nav; render(); }
   else if(t.dataset.wk){ S.draft.workout=t.dataset.wk; cache.draftWrite(); render(); }
   else if(t.dataset.minus){ bump(t.dataset.minus,-1); }
   else if(t.dataset.plus){ bump(t.dataset.plus,1); }
   else if(t.dataset.done){ toggleDone(t.dataset.done); }
-  else if(t.dataset.open){ const d=document.getElementById("det_"+t.dataset.open); if(d) d.style.display=d.style.display==="none"?"block":"none"; }
+  else if(t.dataset.sopen){ const id=Number(t.dataset.sopen); S.sOpen=(S.sOpen===id?null:id); S.sEdit=null; render(); }
+  else if(t.dataset.sedit){ const id=Number(t.dataset.sedit); S.sOpen=id; S.sEdit=id; render(); }
+  else if(t.dataset.scancel){ S.sEdit=null; render(); }
+  else if(t.dataset.ssave){ saveSessionEdit(Number(t.dataset.ssave)); }
   else if(t.dataset.delses){ delSession(Number(t.dataset.delses)); }
   else if(t.dataset.mopen){ const id=Number(t.dataset.mopen); S.mOpen=(S.mOpen===id?null:id); S.mEdit=null; render(); }
   else if(t.dataset.wedit){ S.mEdit=Number(t.dataset.wedit); render(); const i=document.querySelector('[data-waist="'+S.mEdit+'"]'); if(i){ i.focus(); if(i.select) i.select(); } }
