@@ -1,0 +1,39 @@
+name: Release
+
+# Crea un tag + release GitHub sull'ultimo commit di main.
+# Si lancia a mano: Actions → Release → Run workflow (o via API).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag della release (es. v1.0.0)"
+        required: true
+      name:
+        description: "Titolo (default = tag)"
+        required: false
+      notes:
+        description: "Note della release (Markdown). Vuoto = generate automatiche."
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Crea la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          NAME: ${{ inputs.name }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          [ -z "$NAME" ] && NAME="$TAG"
+          if [ -n "$NOTES" ]; then
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "$NAME" --notes "$NOTES"
+          else
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "$NAME" --generate-notes
+          fi
