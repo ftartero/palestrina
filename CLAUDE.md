@@ -126,7 +126,7 @@ Si lavora **sempre su `main`**: commit diretti sul ramo principale, niente branc
 - Modifica di un record già salvato (oggi si può solo eliminare).
 - Selettore di programma nell'UI quando ci sarà più di un `programs/*.js`.
 - Grafico progressi carichi per esercizio; export CSV (oggi c'è già il backup JSON).
-- **Import automatico peso/%grasso da Garmin** (bilancia → Garmin Connect): non fattibile direttamente (auth complessa, niente API personale). Servirebbe un middleware schedulato con le credenziali Garmin che scrive nel Foglio. Idea parcheggiata.
+- **Import peso/%grasso da Garmin**: via **Apple Salute + Shortcut iOS** (nessuna credenziale Garmin). Il backend espone `POST ?action=addMeasure` (body `{weight,fat,date}`) che fa **upsert** di una misura per data preservando il girovita manuale. Setup passo-passo in `docs/garmin-shortcut.md`. *(Alternativa scartata: middleware con credenziali Garmin.)*
 
 ## Stile delle risposte
 

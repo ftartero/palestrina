@@ -21,6 +21,9 @@ function doGet(e){
 
 function doPost(e){
   if(!authorized(e)) return json({error:"unauthorized"});
+  // azione "addMeasure": inserisce/aggiorna UNA misura (usata dallo Shortcut iOS / Garmin)
+  if(e && e.parameter && e.parameter.action === "addMeasure") return addMeasure(e);
+  // default: salva TUTTO lo stato
   var data;
   try { data = JSON.parse((e.postData && e.postData.contents) || "{}"); }
   catch(err){ return json({error:"bad json"}); }
@@ -28,6 +31,40 @@ function doPost(e){
   writeDB(payload);
   mirror(payload);
   return json({ok:true});
+}
+
+/* Inserisce o aggiorna una singola misura (dedup per data). Il peso è
+   obbligatorio; grasso/girovita opzionali. Se la misura del giorno esiste già
+   e il nuovo dato non porta il girovita, quello esistente (manuale) si mantiene. */
+function addMeasure(e){
+  var m;
+  try { m = JSON.parse((e.postData && e.postData.contents) || "{}"); }
+  catch(err){ return json({error:"bad json"}); }
+  if(m.weight == null || m.weight === "" || isNaN(Number(m.weight))) return json({error:"weight required"});
+  var db = readDB();
+  var measures = db.measures || [];
+  var date = m.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+  var rec = {
+    id: Number(m.id) || (new Date().getTime()),
+    date: date,
+    weight: Number(m.weight),
+    fat:   (m.fat   == null || m.fat   === "") ? null : Number(m.fat),
+    waist: (m.waist == null || m.waist === "") ? null : Number(m.waist)
+  };
+  var idx = -1;
+  for(var i=0;i<measures.length;i++){ if(measures[i].date === date){ idx = i; break; } }
+  if(idx >= 0){
+    if(rec.waist == null && measures[idx].waist != null) rec.waist = measures[idx].waist; // preserva il girovita manuale
+    rec.id = measures[idx].id;
+    measures[idx] = rec;
+  } else {
+    measures.push(rec);
+  }
+  measures.sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+  var payload = { sessions: db.sessions || [], measures: measures };
+  writeDB(payload);
+  mirror(payload);
+  return json({ok:true, measure:rec});
 }
 
 /* ---- auth: token dalla proprietà di script "SECRET" ---- */
