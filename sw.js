@@ -1,7 +1,7 @@
 /* Service worker minimale: rende l'app installabile e apribile offline.
    Strategia: network-first per i file dell'app, con fallback alla cache.
    Le chiamate al backend (Apps Script, altra origine) NON vengono toccate. */
-const V = "palestrina-v2";
+const V = "palestrina-v3";
 const SHELL = [
   "./", "index.html",
   "programs/upper-body-90.js",
