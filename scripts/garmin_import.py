@@ -11,11 +11,12 @@ Env richiesti:
 
 NB: usa l'API Garmin NON ufficiale (garminconnect): può cambiare.
 """
-import json, os, sys, datetime, urllib.parse, urllib.request
+import json, os, sys, datetime
+import requests  # incluso come dipendenza di garminconnect
 
 
 def need(name):
-    v = os.environ.get(name)
+    v = (os.environ.get(name) or "").strip()
     if not v:
         sys.exit("Manca la variabile d'ambiente %s" % name)
     return v
@@ -58,21 +59,33 @@ def main():
         "metabolicAge": e.get("metabolicAge"),
     }
     measure = {k: v for k, v in measure.items() if v is not None}
+    print("Misura letta da Garmin:", measure)
     if "weight" not in measure:
         print("Ultima misura senza peso, salto.")
         return
 
-    api = url + "?token=" + urllib.parse.quote(token) + "&action=addMeasure"
-    req = urllib.request.Request(
-        api, data=json.dumps(measure).encode("utf-8"),
-        method="POST", headers={"Content-Type": "text/plain"},
+    # POST verso Apps Script: requests segue il redirect 302 (come browser/curl).
+    r = requests.post(
+        url,
+        params={"token": token, "action": "addMeasure"},
+        data=json.dumps(measure),
+        headers={"Content-Type": "text/plain"},
+        timeout=60,
+        allow_redirects=True,
     )
-    with urllib.request.urlopen(req, timeout=30) as r:
-        body = r.read().decode()
-    print("Inviata misura:", measure)
-    print("Risposta backend:", body)
-    if '"error"' in body:
-        sys.exit("Il backend ha risposto con errore.")
+    body = r.text or ""
+    print("HTTP:", r.status_code, "| host finale:", r.url.split("?")[0])
+    print("Risposta backend (primi 400 char):", body[:400])
+
+    low = body.lower()
+    if '"ok"' in body:
+        print("OK: misura salvata nel Foglio.")
+        return
+    if "accounts.google.com" in low or "<html" in low or "signin" in low:
+        sys.exit("Il backend NON è pubblico: la Web App risponde con una pagina "
+                 "di login Google. In Apps Script → Gestisci distribuzioni metti "
+                 "'Chi ha accesso: Chiunque'.")
+    sys.exit("Risposta inattesa dal backend (vedi sopra).")
 
 
 if __name__ == "__main__":
