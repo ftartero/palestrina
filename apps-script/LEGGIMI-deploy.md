@@ -39,9 +39,44 @@ I nomi dei file HTML nell'editor devono essere **esattamente** `index` e
    offline).
 
 ## Aggiornare l'app dopo una modifica
-Ricopia i file cambiati nell'editor, poi **Distribuisci → Gestisci
-distribuzioni → ✏️ → Versione: Nuova**. Senza "Nuova versione" l'URL continua a
-servire la versione vecchia.
+
+Con il **deploy automatico** (sotto) attivo, non serve fare nulla a mano: a ogni
+push su `main` che tocca `apps-script/`, la GitHub Action aggiorna il progetto e
+ridistribuisce la Web App (stesso URL `/exec`).
+
+Fallback manuale: ricopia i file cambiati nell'editor, poi **Distribuisci →
+Gestisci distribuzioni → ✏️ → Versione: Nuova**.
+
+## Deploy automatico (GitHub Actions + clasp)
+
+Il workflow `.github/workflows/deploy-appsscript.yml` usa
+[`clasp`](https://github.com/google/clasp) per caricare il codice e aggiornare
+la Web App. Setup **una-tantum** (le credenziali sono tue: Claude non può
+crearle):
+
+1. **Abilita l'Apps Script API**: vai su <https://script.google.com/home/usersettings>
+   e attiva *Google Apps Script API*.
+2. **Genera le credenziali clasp** sul tuo PC:
+   ```bash
+   npm install -g @google/clasp@2.4.2
+   clasp login            # apre il browser, autorizza col tuo account
+   ```
+   Copia il contenuto del file `~/.clasprc.json` (su Windows:
+   `%USERPROFILE%\.clasprc.json`).
+3. Nel repo GitHub → **Settings → Secrets and variables → Actions**:
+   - **Secret** `CLASPRC_JSON` = il contenuto di `~/.clasprc.json` (credenziale
+     sensibile: dà accesso al tuo Apps Script).
+   - **Secret** `SCRIPT_ID` = l'*ID script* (editor Apps Script → ⚙️
+     Impostazioni progetto → "ID script").
+   - **Variable** `DEPLOYMENT_ID` = l'*ID distribuzione* della Web App (è la
+     stringa lunga `AKfycb…` dentro l'URL `/exec`, oppure Distribuisci →
+     Gestisci distribuzioni → ID distribuzione).
+4. Fai partire il workflow (un push, oppure **Actions → Deploy Apps Script →
+   Run workflow**). Da qui in poi ogni push aggiorna l'app da solo.
+
+Il file `apps-script/appsscript.json` fissa nel codice `executeAs: USER_DEPLOYING`
+e `access: MYSELF` → la Web App resta **Esegui come: Io · Accesso: Solo io** a
+ogni deploy.
 
 ## Note
 - **Un solo esercizio manuale** resta il deploy: l'editor Apps Script non è

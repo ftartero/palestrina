@@ -111,7 +111,9 @@ Verifica a mano nell'app reale: `+`/`−`, spunta ✓, salva sessione, aggiungi/
 
 ## Deploy
 
-Vedi **`apps-script/LEGGIMI-deploy.md`**. In breve: incolla `Codice.gs` + i file HTML `index`/`program` nell'editor del Foglio, **Distribuisci → App web** (Esegui come: Io · Accesso: Solo io). Dopo ogni modifica: **Gestisci distribuzioni → Versione: Nuova**. L'editor Apps Script non è pilotabile da Claude Code: il deploy è un passo manuale (o via `clasp`).
+**Automatico (CI):** il workflow `.github/workflows/deploy-appsscript.yml` usa `clasp` per caricare `apps-script/` nel progetto e aggiornare la Web App a ogni push su `main` (stesso URL `/exec`). Il manifest `apps-script/appsscript.json` fissa `access: MYSELF` / `executeAs: USER_DEPLOYING` (= Solo io / Esegui come Io). Setup una-tantum dei Secret (`CLASPRC_JSON`, `SCRIPT_ID`, variabile `DEPLOYMENT_ID`) e abilitazione dell'Apps Script API: vedi **`apps-script/LEGGIMI-deploy.md`**.
+
+**Manuale (fallback):** incolla `Codice.gs` + i file HTML `index`/`program` nell'editor del Foglio, **Distribuisci → Gestisci distribuzioni → Versione: Nuova**.
 
 ## Git / branch
 

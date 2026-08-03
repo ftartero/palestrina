@@ -1,0 +1,67 @@
+name: Deploy Apps Script
+
+# Deploy automatico dell'app su Google Apps Script tramite clasp.
+# Ad ogni push su main che tocca apps-script/, il codice viene caricato nel
+# progetto e la Web App esistente viene aggiornata a una nuova versione
+# (stesso URL /exec). Vedi apps-script/LEGGIMI-deploy.md per il setup dei Secret.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps-script/**"
+      - ".github/workflows/deploy-appsscript.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-appsscript
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Installa clasp
+        run: npm install -g @google/clasp@2.4.2
+
+      - name: Verifica configurazione
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
+          DEPLOYMENT_ID: ${{ vars.DEPLOYMENT_ID }}
+        run: |
+          missing=0
+          [ -z "$CLASPRC_JSON" ] && { echo "::error::Manca il secret CLASPRC_JSON"; missing=1; }
+          [ -z "$SCRIPT_ID" ]    && { echo "::error::Manca il secret SCRIPT_ID"; missing=1; }
+          [ -z "$DEPLOYMENT_ID" ] && { echo "::error::Manca la variable DEPLOYMENT_ID"; missing=1; }
+          [ "$missing" = "1" ] && exit 1 || echo "Configurazione presente."
+
+      - name: Autentica clasp
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+
+      - name: Scrivi .clasp.json
+        working-directory: apps-script
+        env:
+          SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
+        run: printf '{"scriptId":"%s","rootDir":"."}' "$SCRIPT_ID" > .clasp.json
+
+      - name: Push del codice nel progetto
+        working-directory: apps-script
+        run: clasp push -f
+
+      - name: Aggiorna la Web App (nuova versione, stesso URL)
+        working-directory: apps-script
+        env:
+          DEPLOYMENT_ID: ${{ vars.DEPLOYMENT_ID }}
+        run: clasp deploy -i "$DEPLOYMENT_ID" -d "CI ${GITHUB_SHA::7}"
