@@ -11,7 +11,7 @@ App minimale per seguire e registrare i propri allenamenti in palestra, comoda d
 
 ## Avvio rapido
 
-1. Crea un Foglio Google nel tuo Drive (es. `Palestrina DB`).
+1. Crea un Foglio Google nel tuo Drive (es. `Palestrina DB` in `Il mio Drive/Sport/Palestrina`).
 2. Nel Foglio: **Estensioni → Apps Script** e incolla i file di `apps-script/` (`Codice.gs`, e i file HTML `index` e `program`).
 3. **Distribuisci → App web** con *Esegui come: Io* e *Chi ha accesso: Solo io*.
 4. Apri l'URL `/exec` (loggato col tuo account) da iPhone e PC.

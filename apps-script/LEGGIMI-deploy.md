@@ -8,7 +8,7 @@ tuo account Google ("Solo io").
 > Compromesso: così **non c'è PWA offline né uso da `file://`** — l'app va
 > caricata dalla rete a ogni apertura e serve login Google.
 
-## File (da mettere nell'editor Apps Script del Foglio `Palestrina DB`)
+## File (da mettere nell'editor Apps Script del Foglio `Palestrina DB`, in `Il mio Drive/Sport/Palestrina`)
 
 | File nell'editor | Sorgente nel repo |
 |---|---|
@@ -21,7 +21,7 @@ I nomi dei file HTML nell'editor devono essere **esattamente** `index` e
 
 ## Passi
 
-1. Apri il Foglio `Palestrina DB` → **Estensioni → Apps Script**.
+1. Apri il Foglio `Palestrina DB` (in `Il mio Drive/Sport/Palestrina`) → **Estensioni → Apps Script**.
 2. **Script**: nel file `Codice.gs` incolla `apps-script/Codice.gs` (sostituendo
    tutto). Se resta il vecchio backend con token/`doPost`, va rimosso: questo lo
    rimpiazza del tutto.
