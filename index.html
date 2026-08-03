@@ -129,7 +129,7 @@
 <script>
 /* ===================== PROGRAMMA (incluso via HtmlService) ===================== */
 const P = window.PROGRAM || {ex:{},workouts:{A:{title:"A",items:[]},B:{title:"B",items:[]}},baseline:{},height:1.73,targetFat:12,name:"Programma"};
-const APP_V = "v5";   // versione app mostrata in Guida (allineala a V in sw.js)
+const APP_V = "v6";   // versione app mostrata in Guida (allineala a V in sw.js)
 const EX = P.ex;
 const WK = P.workouts;
 const BASELINE = P.baseline;
@@ -460,7 +460,7 @@ function renderMisure(){
     if(last.fat!=null){
       h+='<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px" class="kv">'+
         cell("Grasso",fmt(last.fat)+" %")+cell("Massa magra",fmt(lean)+" kg")+
-        cell("Massa grassa",fmt(fatM)+" kg")+cell("Girovita",last.waist!=null?fmt(last.waist)+" cm":"–")+
+        cell("Massa grassa",fmt(fatM)+" kg")+cell("Girovita",waistValueHtml(last))+
         cell("Peso al "+TARGET+"%",fmt(wT)+" kg","var(--dorso)")+cell("Ancora circa",toGo!=null?fmt(Math.max(0,toGo))+" kg":"–","var(--spalle)")+'</div>'+
         '<div class="tiny faint" style="margin-top:8px">Addominali visibili ~10–12%. Ora sei al '+fmt(last.fat)+'%.</div>';
     }
@@ -473,24 +473,40 @@ function renderMisure(){
     if(xtra) h+='<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px" class="kv">'+xtra+'</div>';
     h+='</div>';
   }
-  h+='<div class="tiny faint" style="margin:2px 4px 8px">Le misure arrivano dalla bilancia Garmin. Il <b style="color:var(--muted)">girovita</b> scrivilo tu qui accanto ad ogni pesata.</div>';
+  h+='<div class="tiny faint" style="margin:2px 4px 8px">Le misure arrivano dalla bilancia Garmin. Tocca una riga per il dettaglio; il <b style="color:var(--muted)">girovita</b> lo scrivi con la matita ✎.</div>';
   if(m.length){
     h+='<div class="card" style="overflow:hidden">'+m.slice().reverse().map(x=>
-      '<div class="row" style="justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px">'+
-      '<span class="muted" style="width:42px">'+ddmm(x.date)+'</span>'+
-      '<span style="font-weight:700;flex:1">'+fmt(x.weight)+' kg</span>'+
-      '<span class="muted" style="width:44px;text-align:right">'+(x.fat!=null?fmt(x.fat)+"%":"")+'</span>'+
-      '<span class="row" style="gap:3px;margin-left:8px">'+
-        '<input data-waist="'+x.id+'" inputmode="decimal" value="'+(x.waist!=null?x.waist:"")+'" placeholder="giro" '+
-        'style="width:48px;text-align:right;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:5px 6px;font-size:13px;outline:none">'+
-        '<span class="faint tiny">cm</span></span>'+
-      '</div>').join("")+'</div>';
+      '<button data-mopen="'+x.id+'" class="row" style="width:100%;justify-content:space-between;padding:11px 12px;border-bottom:1px solid var(--line);font-size:14px;text-align:left">'+
+        '<span class="muted" style="width:44px">'+ddmm(x.date)+'</span>'+
+        '<span style="font-weight:700;flex:1">'+fmt(x.weight)+' kg</span>'+
+        '<span class="muted" style="width:46px;text-align:right">'+(x.fat!=null?fmt(x.fat)+"%":"")+'</span>'+
+        '<span class="muted" style="width:54px;text-align:right">'+(x.waist!=null?fmt(x.waist)+"cm":"")+'</span>'+
+        '<span class="faint" style="margin-left:8px">'+(S.mOpen===x.id?"▴":"▾")+'</span>'+
+      '</button>'+
+      (S.mOpen===x.id ? '<div style="padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel2)">'+measureDetail(x)+'</div>' : '')
+    ).join("")+'</div>';
   } else {
     h+='<div class="empty"><div style="font-weight:700;color:var(--text)">Ancora nessuna misura</div><div class="small">Arriveranno da Garmin alla prossima sincronizzazione.</div></div>';
   }
   return h;
 }
 const cell=(l,v,col)=>'<div><div class="l">'+l+'</div><div class="v" style="color:'+(col||"var(--text)")+'">'+v+'</div></div>';
+const pencilSvg=()=>'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+function waistValueHtml(x){
+  if(S.mEdit===x.id) return '<input data-waist="'+x.id+'" inputmode="decimal" value="'+(x.waist!=null?x.waist:"")+'" placeholder="cm" style="width:64px;text-align:right;background:var(--panel2);border:1px solid var(--spalle);border-radius:8px;color:var(--text);padding:4px 7px;font-size:14px;font-weight:800;outline:none">';
+  return '<span>'+(x.waist!=null?fmt(x.waist)+" cm":"–")+'</span> <button data-wedit="'+x.id+'" class="faint" style="padding:3px 5px">'+pencilSvg()+'</button>';
+}
+function measureDetail(x){
+  var r=[cell("Peso",fmt(x.weight)+" kg")];
+  if(x.fat!=null) r.push(cell("Grasso",fmt(x.fat)+" %"));
+  if(x.muscle!=null) r.push(cell("Muscolo",fmt(x.muscle)+" kg"));
+  if(x.water!=null) r.push(cell("Acqua",fmt(x.water)+" %"));
+  if(x.bone!=null) r.push(cell("Ossa",fmt(x.bone)+" kg"));
+  if(x.visceral!=null) r.push(cell("Grasso viscerale",fmt(x.visceral,0)));
+  if(x.metabolicAge!=null) r.push(cell("Età metabolica",fmt(x.metabolicAge,0)+" anni"));
+  r.push(cell("Girovita",waistValueHtml(x)));
+  return '<div class="kv">'+r.join("")+'</div>';
+}
 function spark(data){
   if(!data||data.length<2) return '<span class="tiny faint">un dato</span>';
   const w=96,h=40,mn=Math.min(...data),mx=Math.max(...data),rg=(mx-mn)||1;
@@ -528,7 +544,7 @@ function renderInfo(){
 
 /* ===================== EVENTI ===================== */
 document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-nav],[data-wk],[data-minus],[data-plus],[data-done],[data-open],[data-delses],[data-act],[data-rest],[data-restdef],[data-autorest]");
+  const t=e.target.closest("[data-nav],[data-wk],[data-minus],[data-plus],[data-done],[data-open],[data-delses],[data-act],[data-rest],[data-restdef],[data-autorest],[data-mopen],[data-wedit]");
   if(!t) return;
   if(t.dataset.nav){ S.view=t.dataset.nav; render(); }
   else if(t.dataset.wk){ S.draft.workout=t.dataset.wk; cache.draftWrite(); render(); }
@@ -537,6 +553,8 @@ document.addEventListener("click",e=>{
   else if(t.dataset.done){ toggleDone(t.dataset.done); }
   else if(t.dataset.open){ const d=document.getElementById("det_"+t.dataset.open); if(d) d.style.display=d.style.display==="none"?"block":"none"; }
   else if(t.dataset.delses){ delSession(Number(t.dataset.delses)); }
+  else if(t.dataset.mopen){ const id=Number(t.dataset.mopen); S.mOpen=(S.mOpen===id?null:id); S.mEdit=null; render(); }
+  else if(t.dataset.wedit){ S.mEdit=Number(t.dataset.wedit); render(); const i=document.querySelector('[data-waist="'+S.mEdit+'"]'); if(i){ i.focus(); if(i.select) i.select(); } }
   else if(t.dataset.act){ ({saveSession,backup,pull,saveConfig,forceUpdate})[t.dataset.act](); }
   else if(t.dataset.rest){ const a=t.dataset.rest; if(a==="minus")restAdj(-15); else if(a==="plus")restAdj(15); else if(a==="toggle")restToggle(); else if(a==="close")restClose(); }
   else if(t.dataset.restdef){ restDefaultSet(Number(t.dataset.restdef)); render(); }
@@ -548,10 +566,10 @@ document.addEventListener("input",e=>{
   else if(t.dataset.date){ S.draft.date=t.value; cache.draftWrite(); }
   else if(t.hasAttribute("data-notefield")){ S.draft.note=t.value; cache.draftWrite(); }
 });
-// girovita: salva quando esci dal campo (blur/invio)
-document.addEventListener("change",e=>{
+// girovita: salva e chiude l'editor quando esci dal campo (blur/invio)
+document.addEventListener("focusout",e=>{
   const t=e.target;
-  if(t.dataset && t.dataset.waist!==undefined) editWaist(t.dataset.waist, t.value);
+  if(t.dataset && t.dataset.waist!==undefined){ S.mEdit=null; editWaist(t.dataset.waist, t.value); }
 });
 // tornando in primo piano l'app risincronizza (così vedi i dati Garmin del mattino)
 document.addEventListener("visibilitychange",function(){ if(!document.hidden) pull(); });
