@@ -117,12 +117,17 @@ Vedi **`apps-script/LEGGIMI-deploy.md`**. In breve: incolla `Codice.gs` + i file
 
 Si lavora **sempre su `main`**: commit diretti sul ramo principale, niente branch di feature separati salvo richiesta esplicita. Commit piccoli e verificabili (test headless verde prima di committare).
 
+## Funzioni recenti
+
+- **Timer di recupero**: parte da solo quando spunti ✓ un esercizio (durata predefinita 60/90/120s in Guida, disattivabile). Pill fissa con ±15s, pausa, chiudi; allarme sonoro (WebAudio) + vibrazione dove supportata (iOS Safari non vibra). Stato in `localStorage` (`ub90_rest`, `ub90_autorest`), non nel modello dati.
+- **Mappa muscoli**: in Allena, SVG inline fronte/retro che evidenzia i gruppi della scheda A/B coi colori muscolo. Le regioni si derivano dal campo `group` degli esercizi via `groupToRegions()` (keyword: petto/dorso/trapez/anterior/posterior/laterale/bicip/tricip/addome/obliqu). I deltoidi laterali illuminano le spalle su entrambe le viste.
+
 ## Idee / roadmap
 
 - Modifica di un record già salvato (oggi si può solo eliminare).
-- Timer di recupero fra le serie nella schermata Allena.
 - Selettore di programma nell'UI quando ci sarà più di un programma.
 - Grafico progressi carichi per esercizio; export CSV (oggi c'è già il backup JSON).
+- **Import automatico peso/%grasso da Garmin** (bilancia → Garmin Connect): non fattibile dentro Apps Script (auth complessa, niente API personale). Servirebbe un middleware schedulato con le credenziali Garmin che scrive nel Foglio. Idea parcheggiata.
 
 ## Stile delle risposte
 

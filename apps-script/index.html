@@ -59,6 +59,12 @@
   .val input{background:transparent; border:none; color:var(--text); width:70px; text-align:center; font-size:28px; font-weight:800; outline:none}
   .val .u{font-size:13px; color:var(--muted); font-weight:600}
   .note{width:100%; margin-top:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px; color:var(--text); font-size:14px; outline:none}
+  /* mappa muscoli */
+  .mmap{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:12px; margin-bottom:12px}
+  .mmap svg{display:block; margin:2px auto 0; width:100%; max-width:300px}
+  .mmap .lg{display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:10px}
+  .mmap .chip{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--muted)}
+  .mmap .chip i{width:11px; height:11px; border-radius:3px; display:inline-block; flex:none}
   /* fixed save + nav */
   .savebar{position:fixed; left:50%; transform:translateX(-50%); bottom:66px; width:100%; max-width:460px; padding:0 16px; pointer-events:none}
   .save{width:100%; pointer-events:auto; background:var(--spalle); color:#1a1206; border-radius:16px; padding:15px; font-weight:800; font-size:16px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 8px 24px rgba(0,0,0,.4)}
@@ -67,6 +73,16 @@
   .nav button{flex:1; padding:9px 0; display:flex; flex-direction:column; align-items:center; gap:2px; color:var(--faint); font-size:11px; font-weight:600}
   .nav button.on{color:var(--text)}
   .nav svg{width:22px; height:22px}
+  /* timer di recupero */
+  .rest{position:fixed; left:50%; transform:translateX(-50%); bottom:150px; width:100%; max-width:460px; padding:0 16px; z-index:25; display:none}
+  .rest.show{display:block}
+  .restbox{background:var(--panel2); border:1px solid var(--line); border-radius:16px; padding:9px 11px; display:flex; align-items:center; gap:8px; box-shadow:0 10px 26px rgba(0,0,0,.5)}
+  .restbox.ring{border-color:var(--dorso); box-shadow:0 0 0 2px var(--dorso), 0 10px 26px rgba(0,0,0,.5)}
+  .rest .lbl{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px}
+  .rest .t{font-weight:800; font-size:22px; font-variant-numeric:tabular-nums; line-height:1}
+  .rest button{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:0 10px; height:38px; font-weight:700; font-size:13px; color:var(--text)}
+  .rest .pm{width:38px; padding:0; font-size:19px}
+  .rest .x{margin-left:auto; width:38px; padding:0; color:var(--muted)}
   /* misc */
   .badge{width:38px; height:38px; border-radius:10px; font-weight:800; display:flex; align-items:center; justify-content:center; color:var(--bg)}
   .pill{display:inline-flex; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700}
@@ -74,6 +90,9 @@
   .kv .l{font-size:12px; color:var(--faint)} .kv .v{font-weight:700}
   .btn{border-radius:12px; padding:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; width:100%}
   .field{background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center; font-weight:700; width:100%; outline:none; font-size:15px}
+  .seg2{display:flex; gap:6px}
+  .seg2 button{border:1px solid var(--line); border-radius:10px; padding:8px 12px; font-weight:700; background:var(--panel2); color:var(--text)}
+  .seg2 button.on{background:var(--spalle); color:#1a1206; border-color:var(--spalle)}
   details summary{cursor:pointer; font-weight:700; list-style:none}
   details summary::-webkit-details-marker{display:none}
   .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:130px; background:var(--text); color:var(--bg); padding:9px 16px; border-radius:999px; font-weight:700; font-size:14px; display:flex; gap:8px; align-items:center; box-shadow:0 8px 24px rgba(0,0,0,.4); z-index:20; opacity:0; transition:opacity .2s}
@@ -99,6 +118,7 @@
 </div>
 
 <div class="nav" id="nav"></div>
+<div class="rest" id="rest"></div>
 <div class="toast" id="toast"></div>
 
 <!-- programma attivo, incluso lato server (Apps Script) -->
@@ -166,7 +186,13 @@ function toast(t){ const n=document.getElementById("toast"); n.innerHTML='<svg w
 /* ---------- azioni ---------- */
 function bump(k,dir){ const e=EX[k]; let v=Number(S.draft.values[k])||0; v=Math.max(0, Math.round((v+dir*e.step)*10)/10); S.draft.values[k]=v; const inp=document.getElementById("v_"+k); if(inp) inp.value=v; cache.draftWrite(); }
 function typeVal(k,raw){ S.draft.values[k] = raw===""?"":Math.max(0,Number(raw)); cache.draftWrite(); }
-function toggleDone(k){ S.draft.done[k]=!S.draft.done[k]; const card=document.querySelector('.ex[data-k="'+k+'"]'); if(card) card.classList.toggle("done",S.draft.done[k]); updateSaveLbl(); cache.draftWrite(); }
+function toggleDone(k){
+  const wasDone=!!S.draft.done[k];
+  S.draft.done[k]=!wasDone;
+  const card=document.querySelector('.ex[data-k="'+k+'"]'); if(card) card.classList.toggle("done",S.draft.done[k]);
+  updateSaveLbl(); cache.draftWrite();
+  if(!wasDone && autoRestGet()) startRest(restDefaultGet());   // parte alla fine dell'esercizio
+}
 function updateSaveLbl(){ const it=WK[S.draft.workout].items; const d=it.filter(k=>S.draft.done[k]).length; const l=document.getElementById("saveLbl"); if(l) l.textContent="Salva sessione "+S.draft.workout+" · "+d+"/"+it.length; }
 
 function saveSession(){
@@ -189,6 +215,116 @@ const val=id=>{const n=document.getElementById(id);return n?n.value:"";};
 function backup(){
   const blob=new Blob([JSON.stringify({sessions:S.sessions,measures:S.measures},null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="palestrina-backup.json"; a.click();
+}
+
+/* ===================== TIMER DI RECUPERO ===================== */
+let RT={left:0,total:0,int:null,running:false};
+function restDefaultGet(){ const v=parseInt(localStorage.getItem("ub90_rest")||"90",10); return isNaN(v)?90:v; }
+function restDefaultSet(v){ try{ localStorage.setItem("ub90_rest",String(v)); }catch(e){} }
+function autoRestGet(){ return localStorage.getItem("ub90_autorest")!=="0"; }
+function autoRestSet(on){ try{ localStorage.setItem("ub90_autorest",on?"1":"0"); }catch(e){} }
+const mmss=s=>Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+function restStop(){ if(RT.int){ clearInterval(RT.int); RT.int=null; } RT.running=false; }
+function restTick(){ RT.left--; if(RT.left<=0){ RT.left=0; restStop(); paintRest(true); restAlarm(); } else paintRest(false); }
+function startRest(sec){ restStop(); RT.total=sec; RT.left=sec; RT.running=true; RT.int=setInterval(restTick,1000); paintRest(false); }
+function restToggle(){ if(RT.running){ restStop(); paintRest(false); } else { if(RT.left<=0) RT.left=RT.total||restDefaultGet(); RT.running=true; RT.int=setInterval(restTick,1000); paintRest(false); } }
+function restAdj(delta){ RT.left=Math.max(0, RT.left+delta); if(RT.left>RT.total) RT.total=RT.left; paintRest(false); }
+function restClose(){ restStop(); const n=document.getElementById("rest"); if(n) n.classList.remove("show"); }
+function paintRest(done){
+  const n=document.getElementById("rest"); if(!n) return;
+  n.classList.add("show");
+  n.innerHTML='<div class="restbox'+(done?' ring':'')+'">'+
+    '<div><div class="lbl">'+(done?"Recupero finito":"Recupero")+'</div><div class="t">'+mmss(RT.left)+'</div></div>'+
+    '<button class="pm" data-rest="minus">−</button>'+
+    '<button class="pm" data-rest="plus">+</button>'+
+    '<button data-rest="toggle">'+(RT.running?"Pausa":(RT.left>0?"Via":"Riavvia"))+'</button>'+
+    '<button class="x" data-rest="close">✕</button></div>';
+}
+function restAlarm(){
+  try{ if(navigator.vibrate) navigator.vibrate([200,120,200]); }catch(e){}
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    const ac=new AC();
+    [0,0.28,0.56].forEach(function(t){
+      const o=ac.createOscillator(), g=ac.createGain();
+      o.type="sine"; o.frequency.value=880; o.connect(g); g.connect(ac.destination);
+      const s=ac.currentTime+t;
+      g.gain.setValueAtTime(0.0001,s); g.gain.exponentialRampToValueAtTime(0.3,s+0.02); g.gain.exponentialRampToValueAtTime(0.0001,s+0.2);
+      o.start(s); o.stop(s+0.22);
+    });
+    setTimeout(function(){ try{ ac.close(); }catch(e){} },1200);
+  }catch(e){}
+}
+
+/* ===================== MAPPA MUSCOLI (SVG inline) ===================== */
+const REG_COL={chest:"var(--petto)",lats:"var(--dorso)",traps:"var(--spalle)",delt_front:"var(--spalle)",
+  delt_side:"var(--spalle)",delt_rear:"var(--spalle)",biceps:"var(--braccia)",triceps:"var(--braccia)",
+  forearms:"var(--braccia)",abs:"var(--core)",obliques:"var(--core)"};
+const REG_LBL={chest:"Petto",lats:"Dorso",traps:"Trapezio",delt_front:"Deltoidi ant.",delt_side:"Deltoidi lat.",
+  delt_rear:"Deltoidi post.",biceps:"Bicipiti",triceps:"Tricipiti",forearms:"Avambracci",abs:"Addome",obliques:"Obliqui"};
+const REG_ORDER=["chest","lats","traps","delt_front","delt_side","delt_rear","biceps","triceps","forearms","abs","obliques"];
+function groupToRegions(g){
+  g=(g||"").toLowerCase(); const r=new Set();
+  if(g.indexOf("petto")>=0) r.add("chest");
+  if(g.indexOf("dorso")>=0) r.add("lats");
+  if(g.indexOf("trapez")>=0) r.add("traps");
+  if(g.indexOf("anterior")>=0) r.add("delt_front");
+  if(g.indexOf("posterior")>=0) r.add("delt_rear");
+  if(g.indexOf("laterale")>=0) r.add("delt_side");
+  if(g.indexOf("deltoide")>=0 && g.indexOf("anterior")<0 && g.indexOf("posterior")<0 && g.indexOf("laterale")<0) r.add("delt_side");
+  if(g.indexOf("spalle")>=0) r.add("delt_side");
+  if(g.indexOf("bicip")>=0) r.add("biceps");
+  if(g.indexOf("tricip")>=0) r.add("triceps");
+  if(g.indexOf("avambrac")>=0) r.add("forearms");
+  if(g.indexOf("addome")>=0 || g.indexOf("core")>=0) r.add("abs");
+  if(g.indexOf("obliqu")>=0) r.add("obliques");
+  return r;
+}
+function workoutRegions(w){ const set=new Set(); (WK[w]?WK[w].items:[]).forEach(k=>groupToRegions(EX[k].group).forEach(x=>set.add(x))); return set; }
+function bodyMap(active){
+  const f=r=> active.has(r) ? REG_COL[r] : "var(--panel2)";
+  // i deltoidi laterali si vedono su entrambe le viste: illuminano le spalle sia davanti sia dietro
+  const fdelt=(active.has("delt_front")||active.has("delt_side")) ? "var(--spalle)" : "var(--panel2)";
+  const rdelt=(active.has("delt_rear")||active.has("delt_side")) ? "var(--spalle)" : "var(--panel2)";
+  const S1='stroke="var(--line)" stroke-width="1"';
+  let s='<svg viewBox="0 0 200 150" role="img" aria-label="mappa muscoli">';
+  // ---- FRONTE (sinistra) ----
+  s+='<text x="50" y="146" text-anchor="middle" fill="var(--faint)" font-size="9">Fronte</text>';
+  s+='<circle cx="50" cy="13" r="8" fill="var(--faint)"/>';
+  s+='<rect x="46" y="20" width="8" height="5" fill="var(--faint)"/>';
+  s+='<ellipse cx="34" cy="33" rx="8" ry="7" fill="'+fdelt+'" '+S1+'/>';
+  s+='<ellipse cx="66" cy="33" rx="8" ry="7" fill="'+fdelt+'" '+S1+'/>';
+  s+='<rect x="40" y="27" width="9" height="12" rx="3.5" fill="'+f("chest")+'" '+S1+'/>';
+  s+='<rect x="51" y="27" width="9" height="12" rx="3.5" fill="'+f("chest")+'" '+S1+'/>';
+  s+='<ellipse cx="27" cy="47" rx="5" ry="10" fill="'+f("biceps")+'" '+S1+'/>';
+  s+='<ellipse cx="73" cy="47" rx="5" ry="10" fill="'+f("biceps")+'" '+S1+'/>';
+  s+='<ellipse cx="23" cy="66" rx="4.3" ry="10" fill="'+f("forearms")+'" '+S1+'/>';
+  s+='<ellipse cx="77" cy="66" rx="4.3" ry="10" fill="'+f("forearms")+'" '+S1+'/>';
+  s+='<rect x="43" y="41" width="14" height="21" rx="3" fill="'+f("abs")+'" '+S1+'/>';
+  s+='<rect x="37.5" y="43" width="4" height="16" rx="2" fill="'+f("obliques")+'" '+S1+'/>';
+  s+='<rect x="58.5" y="43" width="4" height="16" rx="2" fill="'+f("obliques")+'" '+S1+'/>';
+  s+='<path d="M43 63 L57 63 L55 84 L45 84 Z" fill="var(--panel2)" '+S1+'/>';
+  // ---- RETRO (destra, +100) ----
+  s+='<text x="150" y="146" text-anchor="middle" fill="var(--faint)" font-size="9">Retro</text>';
+  s+='<circle cx="150" cy="13" r="8" fill="var(--faint)"/>';
+  s+='<path d="M139 23 L161 23 L165 39 L135 39 Z" fill="'+f("traps")+'" '+S1+'/>';
+  s+='<ellipse cx="133" cy="34" rx="8" ry="7" fill="'+rdelt+'" '+S1+'/>';
+  s+='<ellipse cx="167" cy="34" rx="8" ry="7" fill="'+rdelt+'" '+S1+'/>';
+  s+='<path d="M138 41 L150 43 L148 61 L141 57 Z" fill="'+f("lats")+'" '+S1+'/>';
+  s+='<path d="M162 41 L150 43 L152 61 L159 57 Z" fill="'+f("lats")+'" '+S1+'/>';
+  s+='<ellipse cx="127" cy="47" rx="5" ry="10" fill="'+f("triceps")+'" '+S1+'/>';
+  s+='<ellipse cx="173" cy="47" rx="5" ry="10" fill="'+f("triceps")+'" '+S1+'/>';
+  s+='<rect x="143" y="61" width="14" height="8" rx="2" fill="var(--panel2)" '+S1+'/>';
+  s+='<path d="M143 69 L157 69 L155 84 L145 84 Z" fill="var(--panel2)" '+S1+'/>';
+  s+='</svg>';
+  return s;
+}
+function mmapCard(w){
+  const active=workoutRegions(w);
+  const legend=REG_ORDER.filter(r=>active.has(r)).map(r=>'<span class="chip"><i style="background:'+REG_COL[r]+'"></i>'+REG_LBL[r]+'</span>').join("");
+  return '<div class="mmap"><div class="row" style="justify-content:space-between;margin-bottom:2px">'+
+    '<span style="font-weight:700">Muscoli di oggi · '+w+'</span><span class="tiny faint">'+(WK[w]?WK[w].title:"")+'</span></div>'+
+    bodyMap(active)+'<div class="lg">'+legend+'</div></div>';
 }
 
 /* ===================== RENDER ===================== */
@@ -218,6 +354,7 @@ function render(){
 function renderAllena(){
   const d=S.draft, it=WK[d.workout].items;
   let h='<div class="seg">'+["A","B"].map(w=>'<button data-wk="'+w+'" class="'+(d.workout===w?"on":"")+'"><span class="k">'+w+'</span><span class="t">'+WK[w].title+'</span></button>').join("")+'</div>';
+  h+=mmapCard(d.workout);
   h+='<div class="daterow"><span class="small muted">Data della sessione</span><input type="date" id="d_date" data-date value="'+d.date+'"></div>';
   h+=it.map(k=>{const e=EX[k],done=d.done[k]?" done":"";return (
     '<div class="ex card'+done+'" data-k="'+k+'" style="--c:'+e.c+'">'+
@@ -311,6 +448,12 @@ function renderInfo(){
     '<div class="small muted" style="margin-top:6px">I dati stanno nel tuo Foglio Google: iPhone e PC che aprono questo indirizzo vedono le stesse cose.</div>'+
     '<button class="btn" data-act="pull" style="background:var(--panel2);color:var(--text);border:1px solid var(--line);margin-top:10px">↻ Sincronizza ora</button>'+
     '<button class="btn" data-act="backup" style="background:transparent;color:var(--muted);margin-top:8px">Scarica backup .json</button></div>';
+  h+='<div class="card" style="padding:16px;margin-bottom:12px"><div style="font-weight:700;margin-bottom:10px">Timer di recupero</div>'+
+    '<div class="row" style="justify-content:space-between;align-items:center"><span class="small muted">Durata predefinita</span>'+
+    '<div class="seg2">'+[60,90,120].map(v=>'<button data-restdef="'+v+'" class="'+(restDefaultGet()===v?"on":"")+'">'+v+'s</button>').join("")+'</div></div>'+
+    '<div class="row" style="justify-content:space-between;align-items:center;margin-top:12px"><span class="small muted">Parte da solo quando spunti ✓</span>'+
+    '<button data-autorest="1" class="pill" style="border:1px solid var(--line);'+(autoRestGet()?"background:var(--dorso);color:#10160a":"background:var(--panel2);color:var(--muted)")+'">'+(autoRestGet()?"Attivo":"Spento")+'</button></div>'+
+    '<div class="tiny faint" style="margin-top:10px">Parte a fine esercizio quando spunti ✓. Puoi metterlo in pausa, aggiustarlo di ±15s o chiuderlo. Su iPhone il suono parte se l\'app è in primo piano; Safari non vibra.</div></div>';
   h+='<div class="card" style="padding:16px;margin-bottom:12px"><div style="font-weight:700;margin-bottom:6px">Come usarla in palestra</div>'+
     '<p class="small muted" style="margin:0">Scegli A o B, regola i pesi con − e +, spunta ✓ ogni esercizio finito, poi <b style="color:var(--text)">Salva sessione</b>: va nello Storico e la schermata si ripulisce, già pronta con i pesi dell\'ultima volta.</p>'+
     '<p class="small muted" style="margin:8px 0 0"><b style="color:var(--text)">Peso:</b> scegli il carico dove le ultime 1–2 ripetizioni sono difficili ma pulite. Sali di una tacca solo quando chiudi in cima al range con margine.</p></div>';
@@ -324,7 +467,7 @@ function renderInfo(){
 
 /* ===================== EVENTI ===================== */
 document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-nav],[data-wk],[data-minus],[data-plus],[data-done],[data-open],[data-delses],[data-delmis],[data-act]");
+  const t=e.target.closest("[data-nav],[data-wk],[data-minus],[data-plus],[data-done],[data-open],[data-delses],[data-delmis],[data-act],[data-rest],[data-restdef],[data-autorest]");
   if(!t) return;
   if(t.dataset.nav){ S.view=t.dataset.nav; render(); }
   else if(t.dataset.wk){ S.draft.workout=t.dataset.wk; cache.draftWrite(); render(); }
@@ -335,6 +478,9 @@ document.addEventListener("click",e=>{
   else if(t.dataset.delses){ delSession(Number(t.dataset.delses)); }
   else if(t.dataset.delmis){ delMeasure(Number(t.dataset.delmis)); }
   else if(t.dataset.act){ ({saveSession,addMeasure,backup,pull})[t.dataset.act](); }
+  else if(t.dataset.rest){ const a=t.dataset.rest; if(a==="minus")restAdj(-15); else if(a==="plus")restAdj(15); else if(a==="toggle")restToggle(); else if(a==="close")restClose(); }
+  else if(t.dataset.restdef){ restDefaultSet(Number(t.dataset.restdef)); render(); }
+  else if(t.dataset.autorest){ autoRestSet(!autoRestGet()); render(); }
 });
 document.addEventListener("input",e=>{
   const t=e.target;
