@@ -1,0 +1,47 @@
+name: Import Garmin
+
+# Legge l'ultima composizione corporea da Garmin Connect e la scrive nel Foglio
+# via l'API Palestrina (?action=addMeasure). Gira ogni mattina + on-demand.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 06:00 UTC (~ mattina in Italia)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: garmin-import
+  cancel-in-progress: true
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verifica configurazione
+        env:
+          GARMIN_TOKENS_B64: ${{ secrets.GARMIN_TOKENS_B64 }}
+          PALESTRINA_URL: ${{ secrets.PALESTRINA_URL }}
+          PALESTRINA_TOKEN: ${{ secrets.PALESTRINA_TOKEN }}
+        run: |
+          miss=0
+          [ -z "$GARMIN_TOKENS_B64" ] && { echo "::error::Manca il secret GARMIN_TOKENS_B64"; miss=1; }
+          [ -z "$PALESTRINA_URL" ]    && { echo "::error::Manca il secret PALESTRINA_URL"; miss=1; }
+          [ -z "$PALESTRINA_TOKEN" ]  && { echo "::error::Manca il secret PALESTRINA_TOKEN"; miss=1; }
+          [ "$miss" = "1" ] && exit 1 || echo "OK"
+
+      - name: Installa garminconnect
+        run: pip install --quiet garminconnect
+
+      - name: Importa da Garmin
+        env:
+          GARMIN_TOKENS_B64: ${{ secrets.GARMIN_TOKENS_B64 }}
+          PALESTRINA_URL: ${{ secrets.PALESTRINA_URL }}
+          PALESTRINA_TOKEN: ${{ secrets.PALESTRINA_TOKEN }}
+        run: python scripts/garmin_import.py

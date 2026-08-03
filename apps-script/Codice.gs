@@ -44,22 +44,25 @@ function addMeasure(e){
   var db = readDB();
   var measures = db.measures || [];
   var date = m.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
-  var rec = {
-    id: Number(m.id) || (new Date().getTime()),
-    date: date,
-    weight: Number(m.weight),
-    fat:   (m.fat   == null || m.fat   === "") ? null : Number(m.fat),
-    waist: (m.waist == null || m.waist === "") ? null : Number(m.waist)
-  };
   var idx = -1;
   for(var i=0;i<measures.length;i++){ if(measures[i].date === date){ idx = i; break; } }
-  if(idx >= 0){
-    if(rec.waist == null && measures[idx].waist != null) rec.waist = measures[idx].waist; // preserva il girovita manuale
-    rec.id = measures[idx].id;
-    measures[idx] = rec;
-  } else {
-    measures.push(rec);
-  }
+  var base = (idx >= 0) ? measures[idx] : {};
+  // merge: il nuovo valore vince se presente, altrimenti si tiene l'esistente
+  // (così il girovita manuale e i dati corporei si conservano tra un invio e l'altro)
+  function pick(nv, ov){ return (nv == null || nv === "" || isNaN(Number(nv))) ? (ov == null ? null : ov) : Number(nv); }
+  var rec = {
+    id: base.id || Number(m.id) || (new Date().getTime()),
+    date: date,
+    weight: Number(m.weight),
+    fat:          pick(m.fat,          base.fat),
+    waist:        pick(m.waist,        base.waist),
+    muscle:       pick(m.muscle,       base.muscle),
+    water:        pick(m.water,        base.water),
+    bone:         pick(m.bone,         base.bone),
+    visceral:     pick(m.visceral,     base.visceral),
+    metabolicAge: pick(m.metabolicAge, base.metabolicAge)
+  };
+  if(idx >= 0) measures[idx] = rec; else measures.push(rec);
   measures.sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
   var payload = { sessions: db.sessions || [], measures: measures };
   writeDB(payload);
@@ -104,10 +107,11 @@ function mirror(p){
 
   var m = sheet("Misure");
   m.clearContents();
-  var mh = ["data","peso","grasso%","girovita_cm"];
+  var mh = ["data","peso","grasso%","girovita_cm","muscolo_kg","acqua%","ossa_kg","viscerale","eta_metab"];
   m.getRange(1,1,1,mh.length).setValues([mh]);
+  var mv = function(v){ return v!=null ? v : ""; };
   var mr = (p.measures||[]).map(function(x){
-    return [x.date, x.weight, x.fat!=null?x.fat:"", x.waist!=null?x.waist:""];
+    return [x.date, x.weight, mv(x.fat), mv(x.waist), mv(x.muscle), mv(x.water), mv(x.bone), mv(x.visceral), mv(x.metabolicAge)];
   });
   if(mr.length) m.getRange(2,1,mr.length,mh.length).setValues(mr);
 }

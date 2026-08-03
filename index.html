@@ -465,6 +465,13 @@ function renderMisure(){
         cell("Peso al "+TARGET+"%",fmt(wT)+" kg","var(--dorso)")+cell("Ancora circa",toGo!=null?fmt(Math.max(0,toGo))+" kg":"–","var(--spalle)")+'</div>'+
         '<div class="tiny faint" style="margin-top:8px">Addominali visibili ~10–12%. Ora sei al '+fmt(last.fat)+'%.</div>';
     }
+    var xtra="";
+    if(last.muscle!=null)       xtra+=cell("Muscolo",fmt(last.muscle)+" kg");
+    if(last.water!=null)        xtra+=cell("Acqua",fmt(last.water)+" %");
+    if(last.bone!=null)         xtra+=cell("Ossa",fmt(last.bone)+" kg");
+    if(last.visceral!=null)     xtra+=cell("Grasso viscerale",fmt(last.visceral,0));
+    if(last.metabolicAge!=null) xtra+=cell("Età metabolica",fmt(last.metabolicAge,0)+" anni");
+    if(xtra) h+='<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px" class="kv">'+xtra+'</div>';
     h+='</div>';
   }
   h+='<div class="card" style="padding:16px;margin-bottom:12px"><div style="font-weight:700;margin-bottom:8px">Nuova misura</div>'+

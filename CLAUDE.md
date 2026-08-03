@@ -56,7 +56,9 @@ Il **frontend** è una PWA statica pubblicata su **GitHub Pages**; il **backend*
 ```js
 session = { id:Number, date:"YYYY-MM-DD", type:"A"|"B",
             entries:{ <exKey>:Number|null, … }, note:String }
-measure = { id:Number, date:"YYYY-MM-DD", weight:Number, fat:Number|null, waist:Number|null }
+measure = { id:Number, date:"YYYY-MM-DD", weight:Number, fat:Number|null, waist:Number|null,
+            // campi opzionali dalla bilancia Garmin (assenti nei record vecchi/manuali):
+            muscle?:Number, water?:Number, bone?:Number, visceral?:Number, metabolicAge?:Number }
 ```
 Le chiavi degli esercizi (`exKey`) sono condivise fra schede quando l'esercizio è lo stesso (es. `lat`, `tricep` stanno in A e B): così il "peso dell'ultima volta" si trascina. La baseline misure del programma viene inserita al primo avvio se il Foglio è vuoto.
 
@@ -126,7 +128,7 @@ Si lavora **sempre su `main`**: commit diretti sul ramo principale, niente branc
 - Modifica di un record già salvato (oggi si può solo eliminare).
 - Selettore di programma nell'UI quando ci sarà più di un `programs/*.js`.
 - Grafico progressi carichi per esercizio; export CSV (oggi c'è già il backup JSON).
-- **Import peso/%grasso da Garmin**: via **Apple Salute + Shortcut iOS** (nessuna credenziale Garmin). Il backend espone `POST ?action=addMeasure` (body `{weight,fat,date}`) che fa **upsert** di una misura per data preservando il girovita manuale. Setup passo-passo in `docs/garmin-shortcut.md`. *(Alternativa scartata: middleware con credenziali Garmin.)*
+- **Import dati corporei da Garmin** (attivo): middleware **GitHub Actions + `garth`** (`scripts/garmin_import.py`, workflow `garmin-import.yml`) legge la composizione corporea (peso, grasso, muscolo, acqua, ossa, viscerale, età metabolica) e la invia a **`POST ?action=addMeasure`** (upsert per data, merge che preserva il girovita manuale). Setup in `docs/garmin-connect.md`. *(Alternativa più semplice, solo peso+grasso, senza credenziali Garmin: Apple Salute + Shortcut, `docs/garmin-shortcut.md`.)*
 
 ## Stile delle risposte
 
