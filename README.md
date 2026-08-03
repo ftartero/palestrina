@@ -2,40 +2,39 @@
 
 App minimale per seguire e registrare i propri allenamenti in palestra, comoda da usare dal telefono durante la sessione. Nasce per il programma **Upper Body 90** ma è pensata per ospitare **più programmi** nel tempo.
 
-- **Frontend:** un unico file statico (`index.html`), nessuna dipendenza, funziona anche offline (PWA installabile).
-- **Backend:** un Foglio Google nel tuo Drive + un piccolo Google Apps Script (`backend/apps-script.gs`) che fa da API. I dati vivono lì, quindi **iPhone e PC vedono gli stessi dati**.
+- **Servita da Google Apps Script:** l'app e i dati vivono nello stesso progetto Apps Script del tuo Foglio Google. `doGet` restituisce l'HTML, il client parla col server via `google.script.run` (same-origin) → **niente token nel client, niente CORS**. iPhone e PC che aprono l'URL vedono gli stessi dati.
+- **Frontend:** HTML/CSS/JS vanilla, nessuna dipendenza. Un unico `apps-script/index.html`, con il programma incluso da `apps-script/program.html`.
+- **Accesso ristretto:** il deployment è pubblicato con *Accesso: Solo io* → solo il tuo account Google può usarla.
 - **Codice colore per muscolo** come sul cartello della macchina (petto, dorso, spalle, braccia, core).
+
+> Nota: essendo servita da Apps Script (iframe sandbox), **non** è una PWA offline e non gira da `file://`. Serve connessione e login Google.
 
 ## Avvio rapido
 
-1. Crea il backend e collega la config seguendo **[docs/LEGGIMI-installazione.md](docs/LEGGIMI-installazione.md)**.
-2. Copia `config.example.js` in `config.js` e compila `API_URL` e `TOKEN` (questo file non va su GitHub).
-3. Apri `index.html` in locale, oppure pubblicalo gratis (Netlify Drop / GitHub Pages) e apri il link su iPhone e PC.
+1. Crea un Foglio Google nel tuo Drive (es. `Palestrina DB`).
+2. Nel Foglio: **Estensioni → Apps Script** e incolla i file di `apps-script/` (`Codice.gs`, e i file HTML `index` e `program`).
+3. **Distribuisci → App web** con *Esegui come: Io* e *Chi ha accesso: Solo io*.
+4. Apri l'URL `/exec` (loggato col tuo account) da iPhone e PC.
+
+Passo-passo completo: **[apps-script/LEGGIMI-deploy.md](apps-script/LEGGIMI-deploy.md)**.
 
 ## Struttura
 
 ```
-index.html                 app (shell) — non contiene dati di programma
-programs/upper-body-90.js  definizione del programma (esercizi + schede)
-config.example.js          modello di config; copia in config.js (ignorato da git)
-backend/apps-script.gs     API su Google Apps Script + Foglio
-manifest.webmanifest, sw.js, icons/   PWA installabile / offline
-docs/                      istruzioni
-CLAUDE.md                  guida per manutenere il progetto con Claude
+apps-script/Codice.gs         backend: doGet + getState/saveState + Foglio
+apps-script/index.html        app (shell) — non contiene dati di programma
+apps-script/program.html      definizione del programma (esercizi + schede)
+apps-script/LEGGIMI-deploy.md istruzioni di deploy
+CLAUDE.md                     guida per manutenere il progetto con Claude
 ```
-
-## Due modi di servirla
-
-- **Statico / PWA** (questa root): `index.html` + `config.js` + `sw.js`, offline e installabile, funziona anche da `file://`. Pubblicabile su Netlify/GitHub Pages.
-- **Da Google Apps Script** (`apps-script/`): l'app è servita dallo stesso script del Foglio via `HtmlService`, il client usa `google.script.run` → **niente token nel client, niente CORS**, accesso ristretto al tuo account. In cambio niente offline/PWA. Guida: [`apps-script/LEGGIMI-deploy.md`](apps-script/LEGGIMI-deploy.md).
 
 ## Aggiungere un programma
 
-Copia `programs/upper-body-90.js`, cambia `id`/`name`/`ex`/`workouts`, e aggiorna il tag `<script src="programs/…">` in `index.html`. Dettagli in `CLAUDE.md`.
+Copia `apps-script/program.html`, cambia `id`/`name`/`ex`/`workouts`. Se aggiungi o rinomini chiavi esercizio, allinea `COLS` in `apps-script/Codice.gs`. Dettagli in `CLAUDE.md`.
 
 ## Sicurezza
 
-`config.js` contiene URL e token e **non è versionato**. Chi ha URL + token può leggere/scrivere sul Foglio: tienili privati.
+Non c'è alcun token nel client: la protezione è l'accesso Google del deployment (*Solo io*). Solo il tuo account, loggato, può aprire l'app e leggere/scrivere il Foglio.
 
 ## Licenza
 

@@ -6,8 +6,7 @@ parla col server via `google.script.run` (same-origin). Accesso ristretto al
 tuo account Google ("Solo io").
 
 > Compromesso: così **non c'è PWA offline né uso da `file://`** — l'app va
-> caricata dalla rete a ogni apertura. Se ti serve l'offline/PWA, usa la
-> versione statica nella root del repo. Vedi `CLAUDE.md`.
+> caricata dalla rete a ogni apertura e serve login Google.
 
 ## File (da mettere nell'editor Apps Script del Foglio `Palestrina DB`)
 

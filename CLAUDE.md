@@ -6,31 +6,24 @@ Questo file serve a Claude (o Claude Code) per lavorare su questo repo mantenend
 
 **Palestrina** è una web-app personale per registrare gli allenamenti, usata dal telefono **durante** la sessione. È nata per il programma *Upper Body 90* di Flavio (sviluppo parte alta con una macchina multi-gym + panca + manubri 3 kg + bici) ma deve restare **generica**: nuovi programmi si aggiungono come file dati, senza toccare la logica.
 
-## Come viene servita (importante)
-
-Ci sono **due varianti** dello stesso frontend. Condividono modello dati, UI e lo stesso Foglio Google; cambiano solo *dove gira* e *come parla col backend*.
-
-- **Attiva — Apps Script / HtmlService (`apps-script/`).** L'app è servita dallo **stesso** progetto Apps Script del Foglio: `doGet` restituisce l'HTML, il client dialoga col server via **`google.script.run`** (same-origin). **Niente token nel client, niente CORS.** Accesso ristretto al proprietario ("Solo io"). **Costo:** niente PWA offline, niente `file://` (gira in un iframe sandbox: il service worker non parte). È questa la variante da far evolvere salvo indicazione diversa.
-- **Legacy — statica / PWA (root del repo).** `index.html` + `config.js` (token) + `sw.js`: funziona da `file://` e da host statico, installabile e offline, POST `text/plain` verso Apps Script. Rimane come alternativa offline; **non è la variante primaria**.
-
-> ⚠️ **Duplicazione da tenere presente.** Logica dell'app e dati del programma esistono in due copie (root e `apps-script/`). Se tocchi la logica, **applica la modifica alla variante che stai sviluppando** e, se vuoi mantenerle allineate, all'altra — oppure proponi di **ritirare la legacy** e documentalo. Non far divergere le due in silenzio.
+L'app è **servita da Google Apps Script** (`HtmlService`) dallo stesso progetto del Foglio che fa da database: nessun hosting esterno, **nessun token nel client**, accesso ristretto al proprietario. (Una precedente variante statica/PWA è stata ritirata.)
 
 ## Principi da rispettare
 
-- **Zero dipendenze nel frontend.** HTML/CSS/JS vanilla. Niente framework, niente build, niente CDN. La variante attiva è un unico `apps-script/index.html` (più `apps-script/program.html` incluso lato server); la legacy è un unico `index.html`.
+- **Zero dipendenze nel frontend.** HTML/CSS/JS vanilla, niente framework, niente build, niente CDN. L'app è `apps-script/index.html` (più `apps-script/program.html`, incluso lato server).
 - **Mobile-first, uso "sudato".** Celle grandi, tasti `+`/`−` da 50px, tocco facile, poco scrolling per esercizio. Testo e UI in **italiano**.
 - **Codice colore per muscolo** (CSS var `--petto --dorso --spalle --braccia --core`): è la firma visiva, richiama il cartello della macchina. Mantienilo.
 - **Dati dell'utente sacri.** Non introdurre modifiche che possano perdere `sessions`/`measures`. La fonte autorevole è il Foglio; il `localStorage` è solo cache/uso in-sessione.
 - **Contenuti di allenamento e alimentazione: moderati e basati su evidenze.** Range 8–15 rip, volume ~10 serie/gruppo/sett, proteine ~1.6–2.0 g/kg, dimagrimento lento 0.25–0.4 kg/sett, obiettivo estetico sano (uomo ~12% grasso). **Mai** suggerire diete estreme, deficit aggressivi, digiuni spinti o toni ossessivi. In caso di dubbio, resta prudente e rimanda al medico.
 
-## Architettura (variante attiva: Apps Script)
+## Architettura
 
 ```
 [ Browser (iPhone/PC), loggato in Google — accesso "Solo io" ]
         |
-        |  doGet()                         → HtmlService serve index.html
-        |                                     (+ program.html incluso via include('program'))
-        |  google.script.run.getState()    → legge {sessions, measures}
+        |  doGet()                            → HtmlService serve index.html
+        |                                        (+ program.html via include('program'))
+        |  google.script.run.getState()       → legge {sessions, measures}
         |  google.script.run.saveState(tutto) → salva TUTTO lo stato
         v
 [ Google Apps Script — apps-script/Codice.gs ]  <-->  [ Foglio Google nel Drive dell'utente ]
@@ -39,29 +32,21 @@ Ci sono **due varianti** dello stesso frontend. Condividono modello dati, UI e l
 ```
 
 - **Sync:** all'avvio l'app mostra subito la cache locale, poi chiama `getState()` e si allinea al Foglio. Ogni azione (salva sessione, aggiungi/elimina misura) chiama `saveState()` con **tutto** lo stato. Il server riscrive `DB!A1` e rigenera i fogli leggibili (`mirror`).
-- **Nessun token, nessun CORS:** `google.script.run` è same-origin. La sicurezza è l'**accesso Google** del deployment (vedi "Sicurezza"). Non reintrodurre `fetch`/token nella variante Apps Script: sono superflui e romperebbero il modello.
-- **Programma incluso lato server:** `index.html` usa `<?!= include('program') ?>`, e `Codice.gs` definisce `include(name)`. I file HTML nell'editor si chiamano esattamente `index` e `program`.
-
-### Variante legacy statica (per contesto)
-
-`index.html` (root) carica `config.js` (URL+token) e `programs/<attivo>.js`, fa `GET ?token=…` per leggere e `POST body=JSON` (**`Content-Type: text/plain`**, nessun preflight) per salvare. **CORS:** funziona proprio perché GET è semplice e il POST è `text/plain` col token in query string. **Non** aggiungere header custom né `application/json` al POST della legacy: romperebbe le chiamate cross-origin verso Apps Script.
+- **Niente token, niente CORS:** `google.script.run` è same-origin; la sicurezza è l'**accesso Google** del deployment (vedi "Sicurezza"). Non reintrodurre `fetch`/token: sono superflui e romperebbero il modello.
+- **Programma incluso lato server:** `index.html` usa `<?!= include('program') ?>` e `Codice.gs` definisce `include(name)`. Nell'editor Apps Script i file HTML si chiamano esattamente `index` e `program`.
+- **Non gira da `file://`:** dipende dal bridge `google.script.run`, che esiste solo dentro Apps Script (l'app è in un iframe sandbox: niente service worker, niente PWA offline). Per i test locali si **stubba** `google.script.run` (vedi "Test").
 
 ## File
 
 | File | Ruolo |
 |---|---|
-| **`apps-script/Codice.gs`** | Variante attiva. `doGet` (serve l'app), `include`, `getState`/`saveState`, `readDB/writeDB/mirror`. |
-| **`apps-script/index.html`** | Variante attiva. Tutta l'app (stile, stato, render, sync via `google.script.run`). |
-| **`apps-script/program.html`** | Variante attiva. Il programma come `<script>` incluso in `index.html`. |
-| **`apps-script/LEGGIMI-deploy.md`** | Come incollare i file nell'editor e distribuire (Accesso: Solo io). |
-| `index.html` | Variante legacy statica: shell PWA. Non contiene dati di programma. |
-| `programs/*.js` | Variante legacy: `window.PROGRAM = { id, name, height, targetFat, baseline, ex, workouts }`. |
-| `config.js` | Solo legacy: `window.CONFIG = { API_URL, TOKEN }`. **Non versionato** (`.gitignore`). Modello in `config.example.js`. |
-| `backend/apps-script.gs` | Backend legacy (token + `doGet`/`doPost` che restituiscono JSON). |
-| `manifest.webmanifest`, `sw.js`, `icons/` | Solo legacy: PWA installabile e offline. |
-| `docs/LEGGIMI-installazione.md` | Setup della variante legacy statica. |
+| `apps-script/Codice.gs` | `doGet` (serve l'app), `include`, `getState`/`saveState`, `readDB`/`writeDB`/`mirror`. |
+| `apps-script/index.html` | Tutta l'app: stile, stato, render, sync via `google.script.run`. Non contiene dati di programma. |
+| `apps-script/program.html` | Il programma attivo come `<script>` incluso in `index.html`. |
+| `apps-script/LEGGIMI-deploy.md` | Come incollare i file nell'editor e distribuire (Accesso: Solo io). |
+| `README.md`, `LICENSE` | Descrizione e licenza. |
 
-## Modello dati (identico nelle due varianti)
+## Modello dati
 
 ```js
 session = { id:Number, date:"YYYY-MM-DD", type:"A"|"B",
@@ -72,25 +57,21 @@ Le chiavi degli esercizi (`exKey`) sono condivise fra schede quando l'esercizio 
 
 ## Aggiungere un nuovo programma
 
-**Variante attiva (Apps Script):**
 1. Copia `apps-script/program.html` e ridefinisci `window.PROGRAM` (`id`, `name`, `height`, `targetFat`, `baseline`, `ex`, `workouts`). Usa le CSS var esistenti per i colori muscolo.
 2. Se **aggiungi o rinomini chiavi esercizio**, aggiorna anche `COLS` in `apps-script/Codice.gs`: serve alla copia leggibile del foglio "Sessioni" (accoppiamento voluto ma da non dimenticare).
 3. Ridistribuisci (nuova versione) e testa.
-
-**Variante legacy:** copia `programs/upper-body-90.js`, cambia i campi, aggiorna il tag `<script src="programs/…">` in `index.html` (o introduci un selettore), e allinea `COLS` in `backend/apps-script.gs`.
 
 **Backend condiviso:** oggi tutti i programmi userebbero lo stesso Foglio. Se in futuro servono più programmi contemporaneamente, aggiungi un campo `program` ai record e filtra, **oppure** usa un Foglio/Deployment per programma. Non mescolare a caso: decidi e documenta. Un **selettore di programma** nell'UI è in roadmap.
 
 ## Sicurezza
 
-- **Variante attiva:** la protezione è l'**accesso Google del deployment**. Distribuisci con **Esegui come: Io** e **Chi ha accesso: Solo io** → solo il tuo account, loggato, può aprire l'app e chiamare `getState`/`saveState`. **Nessun token nel client, nessun segreto da pubblicare.** "Esegui come: Io" è necessario perché lo script scrive sul *tuo* Foglio. Cambiare accesso o codice = **ridistribuire** (Gestisci distribuzioni → ✏️ → Versione: Nuova).
-- **Variante legacy:** la protezione è il **token** in query string dentro `config.js`. Adeguata per dati personali a basso rischio, non per dati sensibili. **Mai committare `config.js`** né il token (è in `.gitignore`; se lo vedi tracciato, rimuovilo). Chiunque abbia URL+token legge/scrive.
+- La protezione è l'**accesso Google del deployment**. Distribuisci con **Esegui come: Io** e **Chi ha accesso: Solo io** → solo il tuo account, loggato, può aprire l'app e chiamare `getState`/`saveState`. **Nessun token nel client, nessun segreto da pubblicare.**
+- **Esegui come: Io** è necessario perché lo script scrive sul *tuo* Foglio.
+- Cambiare accesso o codice = **ridistribuire**: Gestisci distribuzioni → ✏️ → Versione: Nuova. Senza "Nuova versione" l'URL serve la versione vecchia.
 
 ## Test (obbligatorio prima di consegnare modifiche)
 
-Non esiste build: si verifica in un browser headless controllando la console. **Atteso: nessun errore JS.** Testa la variante che tocchi.
-
-**Variante attiva (Apps Script)** — si simula l'`include` del programma e si stubba `google.script.run` (in questo ambiente il browser è già presente; senza `executable_path` Playwright usa quello installato):
+Non esiste build: si verifica in un browser headless controllando la console. **Atteso: nessun errore JS.** Si simula l'`include` del programma e si **stubba** `google.script.run` (in questo ambiente il browser è già presente; senza `executable_path` Playwright usa quello installato):
 
 ```python
 # richiede playwright + chromium
@@ -128,16 +109,13 @@ print('bridge:', calls)   # atteso: getState + almeno un saveState (seed baselin
 ```
 Verifica a mano nell'app reale: `+`/`−`, spunta ✓, salva sessione, aggiungi/elimina misura, espandi nello storico.
 
-**Variante legacy:** carica `file://…/index.html` con `pg.route('**/script.google.com/**', lambda r: r.abort())` (simula offline) e controlla zero errori JS su tutte le tab. Deve funzionare **sia** da `file://` **sia** da http.
-
 ## Deploy
 
-- **Variante attiva (Apps Script):** vedi **`apps-script/LEGGIMI-deploy.md`**. In breve: incolla `Codice.gs` + i file HTML `index`/`program` nell'editor del Foglio, **Distribuisci → App web** (Esegui come: Io · Accesso: Solo io). Dopo ogni modifica: **Gestisci distribuzioni → Versione: Nuova**, altrimenti l'URL serve la versione vecchia.
-- **Variante legacy (statica):** doppio clic su `index.html` (locale), oppure Netlify Drop / GitHub Pages con `config.js` (non pubblicare il token). Se cambi lo shell (`index.html`, programma, icone), **incrementa `V` in `sw.js`** per invalidare la cache PWA.
+Vedi **`apps-script/LEGGIMI-deploy.md`**. In breve: incolla `Codice.gs` + i file HTML `index`/`program` nell'editor del Foglio, **Distribuisci → App web** (Esegui come: Io · Accesso: Solo io). Dopo ogni modifica: **Gestisci distribuzioni → Versione: Nuova**. L'editor Apps Script non è pilotabile da Claude Code: il deploy è un passo manuale (o via `clasp`).
 
 ## Git / branch
 
-Si lavora **sempre su `main`**: commit diretti sul ramo principale, niente branch di feature separati salvo richiesta esplicita. Commit piccoli e verificabili (test headless verde prima di committare). `config.js` non va mai committato (è in `.gitignore`).
+Si lavora **sempre su `main`**: commit diretti sul ramo principale, niente branch di feature separati salvo richiesta esplicita. Commit piccoli e verificabili (test headless verde prima di committare).
 
 ## Idee / roadmap
 
@@ -145,8 +123,7 @@ Si lavora **sempre su `main`**: commit diretti sul ramo principale, niente branc
 - Timer di recupero fra le serie nella schermata Allena.
 - Selettore di programma nell'UI quando ci sarà più di un programma.
 - Grafico progressi carichi per esercizio; export CSV (oggi c'è già il backup JSON).
-- Decidere se **ritirare la variante legacy statica** per avere un'unica fonte.
 
 ## Stile delle risposte
 
-Codice ordinato, commenti in italiano, identificatori in inglese. Modifiche piccole e verificabili. Non aggiungere dipendenze. Se una richiesta rischia di rompere il modello dati, la sicurezza o l'allineamento fra le due varianti, **segnalalo invece di procedere**.
+Codice ordinato, commenti in italiano, identificatori in inglese. Modifiche piccole e verificabili. Non aggiungere dipendenze. Se una richiesta rischia di rompere il modello dati o la sicurezza, **segnalalo invece di procedere**.
