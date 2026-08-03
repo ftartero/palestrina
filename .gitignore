@@ -1,0 +1,13 @@
+# Segreti locali: contiene URL della Web App e token — NON versionare
+config.js
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Vari
+node_modules/
+*.zip
+*.log

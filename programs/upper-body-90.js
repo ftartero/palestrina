@@ -1,0 +1,53 @@
+/* =============================================================
+ *  PROGRAMMA: Upper Body 90
+ *  Un "programma" è solo un oggetto dati. Per crearne uno nuovo:
+ *  copia questo file, cambia id/name/EX/WK e caricalo da index.html.
+ *  Vedi CLAUDE.md → "Aggiungere un nuovo programma".
+ * ============================================================= */
+window.PROGRAM = {
+  id: "upper-body-90",
+  name: "Upper Body 90",
+  height: 1.73,     // m — per il calcolo BMI nelle misure
+  targetFat: 12,    // % grasso obiettivo (uomo: addominali visibili ~10–12%)
+
+  // baseline misure inserita al primo avvio (poi la gestisci dall'app)
+  baseline: { id: 1754006400000, date: "2026-08-01", weight: 73.7, fat: 18, waist: null },
+
+  // esercizi: la "chiave" è condivisa fra schede (lat e tricep valgono per A e B)
+  ex: {
+    bench:{name:"Seated Bench Press",group:"Petto",c:"var(--petto)",sets:3,reps:"8–12",unit:"kg",step:1,def:3,fav:1,
+      cue:"Schiena appoggiata, spingi le maniglie in avanti fin quasi a distendere le braccia (gomiti non bloccati), torna lento. Non inarcare la schiena."},
+    fly:{name:"Pectoral Fly",group:"Petto",c:"var(--petto)",sets:3,reps:"10–15",unit:"kg",step:1,def:3,fav:1,
+      cue:"Braccia semi-distese, chiudi le maniglie davanti al petto con un arco ampio 'abbracciando', stringi i pettorali, riapri lento."},
+    lat:{name:"Wide Lat Pull-Down",group:"Dorso",c:"var(--dorso)",sets:3,reps:"8–12",unit:"kg",step:1,def:3,fav:1,
+      cue:"Presa larga. Tira verso l'alto del petto portando i gomiti in basso e indietro, scapole strette; risali controllando."},
+    uprow:{name:"Upright Row",group:"Spalle / trapezio",c:"var(--spalle)",sets:3,reps:"10–12",unit:"kg",step:1,def:3,
+      cue:"Tira l'impugnatura verso il mento coi gomiti alti sopra i polsi; fermati a petto/clavicole. Pulito, senza slancio."},
+    frontdelt:{name:"Front Deltoid Raise",group:"Deltoide anteriore",c:"var(--spalle)",sets:3,reps:"12–15",unit:"kg",step:1,def:3,
+      cue:"Solleva davanti a te fino all'altezza delle spalle con le braccia quasi dritte, scendi lento. Niente slancio."},
+    latraise:{name:"Alzate laterali",group:"Deltoide laterale · manubri",c:"var(--spalle)",sets:3,reps:"12–20",unit:"kg",step:1,def:3,
+      cue:"In piedi, braccia un po' piegate: solleva i manubri di lato fino alle spalle, scendi lento. Non superare le spalle."},
+    reardelt:{name:"Alzate posteriori",group:"Deltoide posteriore · manubri",c:"var(--spalle)",sets:3,reps:"12–20",unit:"kg",step:1,def:3,
+      cue:"Busto inclinato avanti: apri le braccia di lato-indietro stringendo le scapole, torna lento. Movimento piccolo e controllato."},
+    curlStd:{name:"Standing Bicep Curl",group:"Bicipiti",c:"var(--braccia)",sets:3,reps:"10–12",unit:"kg",step:1,def:3,
+      cue:"Gomiti fermi ai fianchi: fletti fino alle spalle, scendi in piena estensione controllando. Non usare la schiena."},
+    curlSeat:{name:"Seated Bicep Curl",group:"Bicipiti",c:"var(--braccia)",sets:3,reps:"10–12",unit:"kg",step:1,def:3,
+      cue:"Seduto, gomiti fermi: fletti fino alle spalle e scendi in piena estensione controllando."},
+    tricep:{name:"Tricep Push-Down",group:"Tricipiti",c:"var(--braccia)",sets:3,reps:"10–12",unit:"kg",step:1,def:3,
+      cue:"Gomiti incollati ai fianchi: spingi in basso fino a distendere, risali lento tenendo i gomiti fermi."},
+    abcrunch:{name:"High Pulley Ab Crunch",group:"Addome",c:"var(--core)",sets:3,reps:"12–15",unit:"kg",step:1,def:3,
+      cue:"In ginocchio sotto il cavo: arrotonda la schiena portando i gomiti alle ginocchia contraendo gli addominali; risali lento."},
+    oblique:{name:"Oblique Side Bend",group:"Obliqui",c:"var(--core)",sets:3,reps:"12–15/lato",unit:"kg",step:1,def:3,
+      cue:"Resistenza da un lato: inclinati lateralmente e risali contraendo il fianco. Tutte le rip. da un lato, poi cambia."},
+    plank:{name:"Plank",group:"Core · a corpo libero",c:"var(--core)",sets:3,reps:"max",unit:"sec",step:5,def:30,
+      cue:"Corpo dritto, addome e glutei contratti. Tieni il piu a lungo possibile con tecnica pulita. Parti da 20–30 sec."},
+    crunchRev:{name:"Crunch inverso / leg raise",group:"Addome basso · corpo libero",c:"var(--core)",sets:3,reps:"12–15",unit:"rip",step:1,def:12,
+      cue:"Sdraiato: porta le ginocchia al petto sollevando appena il bacino, scendi lento senza far cadere le gambe. Controllo, no slancio."},
+  },
+
+  // schede: liste ordinate di chiavi degli esercizi
+  workouts: {
+    A:{title:"Spinta & core", items:["bench","lat","uprow","latraise","curlStd","tricep","abcrunch","plank"]},
+    B:{title:"Tirata & core", items:["fly","lat","frontdelt","reardelt","curlSeat","tricep","oblique","crunchRev"]},
+  },
+};
