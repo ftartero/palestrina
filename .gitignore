@@ -13,3 +13,7 @@ Thumbs.db
 node_modules/
 *.zip
 *.log
+
+# Python
+__pycache__/
+*.pyc
