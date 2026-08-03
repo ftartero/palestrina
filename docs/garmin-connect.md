@@ -37,8 +37,8 @@ Actions → **Import Garmin** → **Run workflow**. Nei log vedi la misura invia
 la risposta del backend. Poi apri Palestrina → **Misure**: dovresti vedere anche
 muscolo/acqua/ossa/viscerale/età metabolica.
 
-Da lì in poi parte **da sola ogni mattina** (cron `0 6 * * *` UTC). L'orario si
-cambia nel workflow.
+Da lì in poi parte **da sola ogni mattina** (cron `0 7 * * *` UTC = 09:00 in
+Italia d'estate). L'orario si cambia nel workflow.
 
 ## Note e manutenzione
 
