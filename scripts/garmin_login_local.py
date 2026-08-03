@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
 DA ESEGUIRE SUL TUO PC, UNA VOLTA.
-Fa il login a Garmin Connect (gestisce l'MFA) e produce il token di sessione
-in base64 da incollare nel Secret GitHub GARMIN_TOKENS_B64.
+Login a Garmin Connect (gestisce l'MFA) e salva il TOKEN DI SESSIONE come
+stringa, da incollare nel Secret GitHub GARMIN_TOKENS.
 
 Prerequisito:  pip install -U garminconnect
 Uso:           python scripts/garmin_login_local.py
-Output:        garmin_tokens_b64.txt  (NON committarlo: è la tua sessione Garmin)
+Output:        garmin_token.txt  (NON committarlo: è la tua sessione Garmin)
 """
-import base64, io, os, tarfile, getpass
+import getpass
 from garminconnect import Garmin
 
 email = input("Email Garmin: ").strip()
@@ -20,15 +20,9 @@ if res1 == "needs_mfa":
     code = input("Codice MFA (SMS/app): ").strip()
     g.resume_login(res2, code)
 
-TOKDIR = os.path.expanduser("~/.garminconnect")
-g.garth.dump(TOKDIR)
+token = g.client.dumps()  # stringa con i token OAuth di sessione
+with open("garmin_token.txt", "w", encoding="utf-8") as f:
+    f.write(token)
 
-buf = io.BytesIO()
-with tarfile.open(fileobj=buf, mode="w:gz") as t:
-    t.add(TOKDIR, arcname=".garminconnect")
-b64 = base64.b64encode(buf.getvalue()).decode()
-with open("garmin_tokens_b64.txt", "w") as f:
-    f.write(b64)
-
-print("\nOK. Apri garmin_tokens_b64.txt e copia TUTTO nel Secret GARMIN_TOKENS_B64.")
+print("\nOK. Apri garmin_token.txt e copia TUTTO nel Secret GARMIN_TOKENS.")
 print("Poi cancella il file. NON committarlo.")

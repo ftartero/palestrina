@@ -26,12 +26,12 @@ jobs:
 
       - name: Verifica configurazione
         env:
-          GARMIN_TOKENS_B64: ${{ secrets.GARMIN_TOKENS_B64 }}
+          GARMIN_TOKENS: ${{ secrets.GARMIN_TOKENS }}
           PALESTRINA_URL: ${{ secrets.PALESTRINA_URL }}
           PALESTRINA_TOKEN: ${{ secrets.PALESTRINA_TOKEN }}
         run: |
           miss=0
-          [ -z "$GARMIN_TOKENS_B64" ] && { echo "::error::Manca il secret GARMIN_TOKENS_B64"; miss=1; }
+          [ -z "$GARMIN_TOKENS" ] && { echo "::error::Manca il secret GARMIN_TOKENS"; miss=1; }
           [ -z "$PALESTRINA_URL" ]    && { echo "::error::Manca il secret PALESTRINA_URL"; miss=1; }
           [ -z "$PALESTRINA_TOKEN" ]  && { echo "::error::Manca il secret PALESTRINA_TOKEN"; miss=1; }
           [ "$miss" = "1" ] && exit 1 || echo "OK"
@@ -41,7 +41,7 @@ jobs:
 
       - name: Importa da Garmin
         env:
-          GARMIN_TOKENS_B64: ${{ secrets.GARMIN_TOKENS_B64 }}
+          GARMIN_TOKENS: ${{ secrets.GARMIN_TOKENS }}
           PALESTRINA_URL: ${{ secrets.PALESTRINA_URL }}
           PALESTRINA_TOKEN: ${{ secrets.PALESTRINA_TOKEN }}
         run: python scripts/garmin_import.py

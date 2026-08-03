@@ -18,7 +18,8 @@ pip install -U garminconnect
 python scripts/garmin_login_local.py
 ```
 Inserisci email/password Garmin (e il codice MFA se attivo). Viene creato
-**`garmin_tokens_b64.txt`**. Copiane **tutto** il contenuto, poi cancellalo.
+**`garmin_token.txt`** (una stringa con i token di sessione). Copiane **tutto**
+il contenuto, poi cancellalo.
 
 ## 2) Metti i Secret nel repo
 
@@ -26,7 +27,7 @@ GitHub → repo → **Settings → Secrets and variables → Actions → New rep
 
 | Secret | Valore |
 |---|---|
-| `GARMIN_TOKENS_B64` | il contenuto di `garmin_tokens_b64.txt` |
+| `GARMIN_TOKENS` | il contenuto di `garmin_token.txt` |
 | `PALESTRINA_URL` | l'URL `/exec` della Web App |
 | `PALESTRINA_TOKEN` | il token (Proprietà script `SECRET`) |
 
@@ -43,7 +44,7 @@ cambia nel workflow.
 
 - Il token di sessione dura a lungo (mesi) e si rinnova ad ogni run. Se il
   workflow inizia a fallire con errori di login, **rifai il punto 1** e aggiorna
-  `GARMIN_TOKENS_B64`.
+  `GARMIN_TOKENS`.
 - Il **girovita** non è misurato dalla bilancia: resta manuale nell'app e viene
   **preservato** quando arriva un dato da Garmin (l'upsert fa merge per data).
 - Se cambi account/bilancia Garmin: rigenera il token (punto 1).

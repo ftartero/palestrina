@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
 """
 Import composizione corporea da Garmin Connect → API Palestrina.
-Gira in GitHub Actions (cron). Riprende una sessione salvata (garth) da un
-Secret, legge l'ultima misura e la invia a ?action=addMeasure.
+Gira in GitHub Actions (cron). Riprende la sessione salvata (stringa token in un
+Secret), legge l'ultima misura della bilancia e la invia a ?action=addMeasure.
 
 Env richiesti:
-  GARMIN_TOKENS_B64   base64 di un tar.gz della cartella ~/.garminconnect
-                      (prodotto una volta con scripts/garmin_login_local.py)
-  PALESTRINA_URL      URL /exec della Web App
-  PALESTRINA_TOKEN    il token (Proprietà script SECRET)
+  GARMIN_TOKENS     stringa token prodotta da scripts/garmin_login_local.py
+  PALESTRINA_URL    URL /exec della Web App
+  PALESTRINA_TOKEN  il token (Proprietà script SECRET)
 
-NB: usa l'API Garmin NON ufficiale (garminconnect/garth): può cambiare.
+NB: usa l'API Garmin NON ufficiale (garminconnect): può cambiare.
 """
-import base64, io, json, os, sys, tarfile, datetime, urllib.parse, urllib.request
-
-HOME = os.path.expanduser("~")
-TOKDIR = os.path.join(HOME, ".garminconnect")
+import json, os, sys, datetime, urllib.parse, urllib.request
 
 
 def need(name):
@@ -23,12 +19,6 @@ def need(name):
     if not v:
         sys.exit("Manca la variabile d'ambiente %s" % name)
     return v
-
-
-def restore_tokens():
-    raw = base64.b64decode(need("GARMIN_TOKENS_B64"))
-    with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as t:
-        t.extractall(HOME)  # ripristina la cartella .garminconnect
 
 
 def g2kg(v):
@@ -42,11 +32,11 @@ def num(v, d=1):
 def main():
     url = need("PALESTRINA_URL")
     token = need("PALESTRINA_TOKEN")
-    restore_tokens()
+    gtok = need("GARMIN_TOKENS")
 
     from garminconnect import Garmin
     g = Garmin()
-    g.login(TOKDIR)  # riprende e rinnova la sessione
+    g.login(gtok)  # riprende e rinnova la sessione dalla stringa token
 
     today = datetime.date.today()
     start = today - datetime.timedelta(days=14)

@@ -1,6 +1,7 @@
 # Segreti locali: contiene URL della Web App e token — NON versionare
 config.js
 # Token di sessione Garmin (prodotto da scripts/garmin_login_local.py) — NON versionare
+garmin_token.txt
 garmin_tokens_b64.txt
 
 # Sistema / editor
