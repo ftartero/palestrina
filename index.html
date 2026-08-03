@@ -129,7 +129,7 @@
 <script>
 /* ===================== PROGRAMMA (incluso via HtmlService) ===================== */
 const P = window.PROGRAM || {ex:{},workouts:{A:{title:"A",items:[]},B:{title:"B",items:[]}},baseline:{},height:1.73,targetFat:12,name:"Programma"};
-const APP_V = "v4";   // versione app mostrata in Guida (allineala a V in sw.js)
+const APP_V = "v5";   // versione app mostrata in Guida (allineala a V in sw.js)
 const EX = P.ex;
 const WK = P.workouts;
 const BASELINE = P.baseline;
@@ -220,14 +220,13 @@ function saveSession(){
   S.draft=freshDraft(); cache.draftWrite(); push(); toast("Sessione salvata"); render();
 }
 function delSession(id){ S.sessions=S.sessions.filter(s=>s.id!==id); push(); render(); }
-function addMeasure(){
-  const w=val("m_w"), f=val("m_f"), g=val("m_g"), d=document.getElementById("m_d").value||today();
-  if(w===""||isNaN(Number(w))){ toast("Metti almeno il peso"); return; }
-  S.measures.push({id:Date.now(), date:d, weight:Number(w), fat:f===""?null:Number(f), waist:g===""?null:Number(g)});
-  S.measures.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-  push(); toast("Misura salvata"); render();
+// il girovita non lo misura la bilancia: si scrive a mano per ogni pesata
+function editWaist(id, raw){
+  const mm=S.measures.find(x=>x.id===Number(id)); if(!mm) return;
+  const v=(raw==null?"":String(raw)).trim();
+  mm.waist=(v===""||isNaN(Number(v)))?null:Number(v);
+  push();
 }
-function delMeasure(id){ S.measures=S.measures.filter(m=>m.id!==id); push(); render(); }
 const val=id=>{const n=document.getElementById(id);return n?n.value:"";};
 
 function backup(){
@@ -474,25 +473,24 @@ function renderMisure(){
     if(xtra) h+='<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px" class="kv">'+xtra+'</div>';
     h+='</div>';
   }
-  h+='<div class="card" style="padding:16px;margin-bottom:12px"><div style="font-weight:700;margin-bottom:8px">Nuova misura</div>'+
-    '<div class="row" style="justify-content:space-between;margin-bottom:8px"><span class="small muted">Data</span><input type="date" id="m_d" value="'+today()+'"></div>'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'+
-      field("Peso kg","m_w")+field("% grasso","m_f")+field("Girovita cm","m_g")+'</div>'+
-    '<button class="btn" data-act="addMeasure" style="background:var(--dorso);color:#10160a;margin-top:12px">+ Aggiungi misura</button>'+
-    '<div class="tiny faint" style="margin-top:8px">Misura appena sveglio, a digiuno: conta il trend, non il singolo numero.</div></div>';
-  if(m.length>1){
+  h+='<div class="tiny faint" style="margin:2px 4px 8px">Le misure arrivano dalla bilancia Garmin. Il <b style="color:var(--muted)">girovita</b> scrivilo tu qui accanto ad ogni pesata.</div>';
+  if(m.length){
     h+='<div class="card" style="overflow:hidden">'+m.slice().reverse().map(x=>
-      '<div class="row" style="justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14px">'+
-      '<span class="muted" style="width:44px">'+ddmm(x.date)+'</span>'+
+      '<div class="row" style="justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px">'+
+      '<span class="muted" style="width:42px">'+ddmm(x.date)+'</span>'+
       '<span style="font-weight:700;flex:1">'+fmt(x.weight)+' kg</span>'+
-      '<span class="muted" style="width:52px;text-align:right">'+(x.fat!=null?fmt(x.fat)+"%":"")+'</span>'+
-      '<span class="muted" style="width:56px;text-align:right">'+(x.waist!=null?fmt(x.waist)+"cm":"")+'</span>'+
-      '<button data-delmis="'+x.id+'" class="faint" style="margin-left:8px">✕</button></div>').join("")+'</div>';
+      '<span class="muted" style="width:44px;text-align:right">'+(x.fat!=null?fmt(x.fat)+"%":"")+'</span>'+
+      '<span class="row" style="gap:3px;margin-left:8px">'+
+        '<input data-waist="'+x.id+'" inputmode="decimal" value="'+(x.waist!=null?x.waist:"")+'" placeholder="giro" '+
+        'style="width:48px;text-align:right;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:5px 6px;font-size:13px;outline:none">'+
+        '<span class="faint tiny">cm</span></span>'+
+      '</div>').join("")+'</div>';
+  } else {
+    h+='<div class="empty"><div style="font-weight:700;color:var(--text)">Ancora nessuna misura</div><div class="small">Arriveranno da Garmin alla prossima sincronizzazione.</div></div>';
   }
   return h;
 }
 const cell=(l,v,col)=>'<div><div class="l">'+l+'</div><div class="v" style="color:'+(col||"var(--text)")+'">'+v+'</div></div>';
-const field=(l,id)=>'<div><div class="tiny faint" style="margin-bottom:4px">'+l+'</div><input id="'+id+'" class="field" inputmode="decimal"></div>';
 function spark(data){
   if(!data||data.length<2) return '<span class="tiny faint">un dato</span>';
   const w=96,h=40,mn=Math.min(...data),mx=Math.max(...data),rg=(mx-mn)||1;
@@ -530,7 +528,7 @@ function renderInfo(){
 
 /* ===================== EVENTI ===================== */
 document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-nav],[data-wk],[data-minus],[data-plus],[data-done],[data-open],[data-delses],[data-delmis],[data-act],[data-rest],[data-restdef],[data-autorest]");
+  const t=e.target.closest("[data-nav],[data-wk],[data-minus],[data-plus],[data-done],[data-open],[data-delses],[data-act],[data-rest],[data-restdef],[data-autorest]");
   if(!t) return;
   if(t.dataset.nav){ S.view=t.dataset.nav; render(); }
   else if(t.dataset.wk){ S.draft.workout=t.dataset.wk; cache.draftWrite(); render(); }
@@ -539,8 +537,7 @@ document.addEventListener("click",e=>{
   else if(t.dataset.done){ toggleDone(t.dataset.done); }
   else if(t.dataset.open){ const d=document.getElementById("det_"+t.dataset.open); if(d) d.style.display=d.style.display==="none"?"block":"none"; }
   else if(t.dataset.delses){ delSession(Number(t.dataset.delses)); }
-  else if(t.dataset.delmis){ delMeasure(Number(t.dataset.delmis)); }
-  else if(t.dataset.act){ ({saveSession,addMeasure,backup,pull,saveConfig,forceUpdate})[t.dataset.act](); }
+  else if(t.dataset.act){ ({saveSession,backup,pull,saveConfig,forceUpdate})[t.dataset.act](); }
   else if(t.dataset.rest){ const a=t.dataset.rest; if(a==="minus")restAdj(-15); else if(a==="plus")restAdj(15); else if(a==="toggle")restToggle(); else if(a==="close")restClose(); }
   else if(t.dataset.restdef){ restDefaultSet(Number(t.dataset.restdef)); render(); }
   else if(t.dataset.autorest){ autoRestSet(!autoRestGet()); render(); }
@@ -551,6 +548,13 @@ document.addEventListener("input",e=>{
   else if(t.dataset.date){ S.draft.date=t.value; cache.draftWrite(); }
   else if(t.hasAttribute("data-notefield")){ S.draft.note=t.value; cache.draftWrite(); }
 });
+// girovita: salva quando esci dal campo (blur/invio)
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset && t.dataset.waist!==undefined) editWaist(t.dataset.waist, t.value);
+});
+// tornando in primo piano l'app risincronizza (così vedi i dati Garmin del mattino)
+document.addEventListener("visibilitychange",function(){ if(!document.hidden) pull(); });
 
 /* ===================== INIT ===================== */
 (function init(){
