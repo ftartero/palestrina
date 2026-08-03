@@ -128,7 +128,8 @@
 <script>
 /* ===================== PROGRAMMA (incluso via HtmlService) ===================== */
 const P = window.PROGRAM || {ex:{},workouts:{A:{title:"A",items:[]},B:{title:"B",items:[]}},baseline:{},height:1.73,targetFat:12,name:"Programma"};
-const APP_V = "v8";   // versione app mostrata in Guida (allineala a V in sw.js)
+const REL = "v1.2.1";   // versione release (tag GitHub), mostrata in Guida
+const APP_V = "v9";     // marker cache PWA interno (allinealo a V in sw.js a ogni modifica dello shell)
 const EX = P.ex;
 const WK = P.workouts;
 const BASELINE = P.baseline;
@@ -566,7 +567,7 @@ function renderInfo(){
     Object.values(EX).map(e=>'<div style="display:flex;gap:10px;margin-bottom:12px"><div style="width:4px;border-radius:9px;background:'+e.c+';flex:none"></div>'+
     '<div><div style="font-weight:700;font-size:14px">'+e.name+' <span class="faint" style="font-weight:400">· '+e.sets+'×'+e.reps+'</span></div>'+
     '<div class="small muted">'+e.cue+'</div></div></div>').join("")+'</div></details>';
-  h+='<div class="tiny faint" style="text-align:center;padding-bottom:8px">'+(P.name||"Palestrina")+' · '+APP_V+' · backend: il tuo Foglio Google</div>';
+  h+='<div class="tiny faint" style="text-align:center;padding-bottom:8px">'+(P.name||"Palestrina")+' · '+REL+' · backend: il tuo Foglio Google</div>';
   return h;
 }
 
