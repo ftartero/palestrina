@@ -122,12 +122,13 @@ Si lavora **sempre su `main`**: commit diretti sul ramo principale, niente branc
 
 - **Timer di recupero**: parte da solo quando spunti ✓ un esercizio (durata 60/90/120s in Guida, disattivabile). Pill fissa con ±15s, pausa, chiudi; allarme sonoro (WebAudio) + vibrazione dove supportata (iOS Safari non vibra). Stato in `localStorage` (`ub90_rest`, `ub90_autorest`), non nel modello dati.
 - **Mappa muscoli**: in Allena, SVG inline fronte/retro (senza gambe) che evidenzia i gruppi della scheda A/B coi colori muscolo. Regioni derivate dal campo `group` via `groupToRegions()`; i deltoidi laterali illuminano le spalle su entrambe le viste.
+- **Storico**: sessioni espandibili con **modifica** (input per esercizio + nota, Salva/Annulla) e card **Progressi carichi** (sparkline per esercizio con ≥2 dati). Stato apertura/edit in `S.sOpen`/`S.sEdit`.
+- **Misure**: solo da Garmin (niente inserimento/eliminazione manuale). **Girovita** editabile a mano (matita) sulla misura corrente e nel dettaglio di ogni pesata; upsert per data che preserva i dati importati. Risync al ritorno in primo piano.
 
 ## Idee / roadmap
 
-- Modifica di un record già salvato (oggi si può solo eliminare).
 - Selettore di programma nell'UI quando ci sarà più di un `programs/*.js`.
-- Grafico progressi carichi per esercizio; export CSV (oggi c'è già il backup JSON).
+- Export CSV (oggi c'è già il backup JSON).
 - **Import dati corporei da Garmin** (attivo): middleware **GitHub Actions + `garth`** (`scripts/garmin_import.py`, workflow `garmin-import.yml`) legge la composizione corporea (peso, grasso, muscolo, acqua, ossa, viscerale, età metabolica) e la invia a **`POST ?action=addMeasure`** (upsert per data, merge che preserva il girovita manuale). Setup in `docs/garmin-connect.md`. *(Alternativa più semplice, solo peso+grasso, senza credenziali Garmin: Apple Salute + Shortcut, `docs/garmin-shortcut.md`.)*
 
 ## Stile delle risposte
