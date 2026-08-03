@@ -19,13 +19,12 @@
     --petto:#E0559A; --dorso:#9FC93C; --spalle:#F08A2C; --braccia:#4F9BD6; --core:#E0779E;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
-  html,body{margin:0; height:100%}
-  /* body alto quanto la viewport e senza scroll proprio: così la barra Salva e
-     la nav (position:fixed) restano ancorate in basso anche dentro l'iframe di
-     Apps Script; è la .wrap a scorrere internamente. */
+  html,body{margin:0}
+  /* scroll naturale della pagina (siamo su un'origine normale, non in iframe):
+     la nav è position:fixed e resta in basso; padding-bottom lascia spazio a lei */
   body{background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-       font-size:15px; line-height:1.4; -webkit-font-smoothing:antialiased; height:100vh; overflow:hidden}
-  .wrap{max-width:460px; margin:0 auto; height:100vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
+       font-size:15px; line-height:1.4; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:460px; margin:0 auto; min-height:100vh;
         display:flex; flex-direction:column; padding-bottom:calc(84px + env(safe-area-inset-bottom))}
   .head{display:flex; align-items:baseline; justify-content:space-between; padding:calc(18px + env(safe-area-inset-top)) 20px 8px}
   .logo{font-weight:800; letter-spacing:-.3px; font-size:19px}
@@ -129,7 +128,7 @@
 <script>
 /* ===================== PROGRAMMA (incluso via HtmlService) ===================== */
 const P = window.PROGRAM || {ex:{},workouts:{A:{title:"A",items:[]},B:{title:"B",items:[]}},baseline:{},height:1.73,targetFat:12,name:"Programma"};
-const APP_V = "v7";   // versione app mostrata in Guida (allineala a V in sw.js)
+const APP_V = "v8";   // versione app mostrata in Guida (allineala a V in sw.js)
 const EX = P.ex;
 const WK = P.workouts;
 const BASELINE = P.baseline;
