@@ -129,6 +129,7 @@
 <script>
 /* ===================== PROGRAMMA (incluso via HtmlService) ===================== */
 const P = window.PROGRAM || {ex:{},workouts:{A:{title:"A",items:[]},B:{title:"B",items:[]}},baseline:{},height:1.73,targetFat:12,name:"Programma"};
+const APP_V = "v4";   // versione app mostrata in Guida (allineala a V in sw.js)
 const EX = P.ex;
 const WK = P.workouts;
 const BASELINE = P.baseline;
@@ -232,6 +233,17 @@ const val=id=>{const n=document.getElementById(id);return n?n.value:"";};
 function backup(){
   const blob=new Blob([JSON.stringify({sessions:S.sessions,measures:S.measures},null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="palestrina-backup.json"; a.click();
+}
+
+/* forza l'aggiornamento dell'app installata: pulisce la cache PWA e ricarica
+   (i dati restano nel Foglio, la config resta in localStorage) */
+async function forceUpdate(){
+  setSync("busy","aggiorno…");
+  try{
+    if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(function(k){ return caches.delete(k); })); }
+    if("serviceWorker" in navigator){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(function(r){ return r.update(); })); }
+  }catch(e){}
+  location.reload();
 }
 
 /* ===================== TIMER DI RECUPERO ===================== */
@@ -488,6 +500,7 @@ function renderInfo(){
     '<div class="row" style="justify-content:space-between"><div style="font-weight:700">Sincronizzazione</div><div class="sync" id="syncline"></div></div>'+
     '<div class="small muted" style="margin-top:6px">I dati stanno nel tuo Foglio Google: iPhone e PC che aprono questo indirizzo vedono le stesse cose.</div>'+
     '<button class="btn" data-act="pull" style="background:var(--panel2);color:var(--text);border:1px solid var(--line);margin-top:10px">↻ Sincronizza ora</button>'+
+    '<button class="btn" data-act="forceUpdate" style="background:var(--panel2);color:var(--text);border:1px solid var(--line);margin-top:8px">⟳ Aggiorna l\'app all\'ultima versione</button>'+
     '<button class="btn" data-act="backup" style="background:transparent;color:var(--muted);margin-top:8px">Scarica backup .json</button></div>';
   h+='<div class="config"><div style="font-weight:700;margin-bottom:2px">Collegamento al Foglio</div>'+
     '<div class="tiny faint">URL e token restano solo su questo dispositivo.</div>'+configForm()+'</div>';
@@ -504,7 +517,7 @@ function renderInfo(){
     Object.values(EX).map(e=>'<div style="display:flex;gap:10px;margin-bottom:12px"><div style="width:4px;border-radius:9px;background:'+e.c+';flex:none"></div>'+
     '<div><div style="font-weight:700;font-size:14px">'+e.name+' <span class="faint" style="font-weight:400">· '+e.sets+'×'+e.reps+'</span></div>'+
     '<div class="small muted">'+e.cue+'</div></div></div>').join("")+'</div></details>';
-  h+='<div class="tiny faint" style="text-align:center;padding-bottom:8px">'+(P.name||"Palestrina")+' · backend: il tuo Foglio Google</div>';
+  h+='<div class="tiny faint" style="text-align:center;padding-bottom:8px">'+(P.name||"Palestrina")+' · '+APP_V+' · backend: il tuo Foglio Google</div>';
   return h;
 }
 
@@ -520,7 +533,7 @@ document.addEventListener("click",e=>{
   else if(t.dataset.open){ const d=document.getElementById("det_"+t.dataset.open); if(d) d.style.display=d.style.display==="none"?"block":"none"; }
   else if(t.dataset.delses){ delSession(Number(t.dataset.delses)); }
   else if(t.dataset.delmis){ delMeasure(Number(t.dataset.delmis)); }
-  else if(t.dataset.act){ ({saveSession,addMeasure,backup,pull,saveConfig})[t.dataset.act](); }
+  else if(t.dataset.act){ ({saveSession,addMeasure,backup,pull,saveConfig,forceUpdate})[t.dataset.act](); }
   else if(t.dataset.rest){ const a=t.dataset.rest; if(a==="minus")restAdj(-15); else if(a==="plus")restAdj(15); else if(a==="toggle")restToggle(); else if(a==="close")restClose(); }
   else if(t.dataset.restdef){ restDefaultSet(Number(t.dataset.restdef)); render(); }
   else if(t.dataset.autorest){ autoRestSet(!autoRestGet()); render(); }
