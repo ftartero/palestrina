@@ -30,6 +30,15 @@ Questo file serve a Claude (o Claude Code) per lavorare su questo repo mantenend
 - **Sync:** all'avvio l'app mostra subito la cache locale, poi fa `pull()` (GET) e si allinea al Foglio. Ogni azione (salva sessione, aggiungi/elimina misura) chiama `push()` (POST con **tutto** lo stato). Il server riscrive `DB!A1` e rigenera i fogli leggibili.
 - **CORS:** funziona perché il GET è semplice e il POST usa `Content-Type: text/plain` (nessun preflight) con il token in query string. **Non** aggiungere header custom né `Content-Type: application/json` al POST: romperebbe le chiamate cross-origin verso Apps Script.
 
+## Modalità di servizio (due varianti dell'app)
+
+Esistono **due modi** di servire lo stesso frontend. Condividono il modello dati e lo stesso Foglio; cambiano hosting e trasporto.
+
+1. **Apps Script / HtmlService — `apps-script/` (attiva, scelta dall'utente).** `doGet` serve l'HTML dallo stesso progetto Apps Script; il client chiama il server via **`google.script.run`** (same-origin). **Niente token nel client, niente CORS.** Accesso ristretto ("Solo io" nel deploy). **Costo:** niente PWA offline, niente `file://` (gira in un iframe sandbox, il service worker non parte). Programma incluso via `include('program')`. Deploy: `apps-script/LEGGIMI-deploy.md`.
+2. **Statico / PWA — root del repo (legacy/offline).** `index.html` + `config.js` (token) + `sw.js`: funziona da `file://` e da host statico, installabile e offline. È la variante descritta nell'Architettura qui sopra.
+
+**Attenzione alla duplicazione:** oggi il codice dell'app e i dati del programma esistono in due copie (root e `apps-script/`). Se modifichi la logica, **applica il cambiamento a entrambe** oppure decidi di ritirare una variante e documentalo. Il test headless va eseguito sulla variante che tocchi (root: caricando `file://`; Apps Script: con lo stub di `google.script.run`).
+
 ## File
 
 | File | Ruolo |

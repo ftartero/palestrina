@@ -24,6 +24,11 @@ docs/                      istruzioni
 CLAUDE.md                  guida per manutenere il progetto con Claude
 ```
 
+## Due modi di servirla
+
+- **Statico / PWA** (questa root): `index.html` + `config.js` + `sw.js`, offline e installabile, funziona anche da `file://`. Pubblicabile su Netlify/GitHub Pages.
+- **Da Google Apps Script** (`apps-script/`): l'app è servita dallo stesso script del Foglio via `HtmlService`, il client usa `google.script.run` → **niente token nel client, niente CORS**, accesso ristretto al tuo account. In cambio niente offline/PWA. Guida: [`apps-script/LEGGIMI-deploy.md`](apps-script/LEGGIMI-deploy.md).
+
 ## Aggiungere un programma
 
 Copia `programs/upper-body-90.js`, cambia `id`/`name`/`ex`/`workouts`, e aggiorna il tag `<script src="programs/…">` in `index.html`. Dettagli in `CLAUDE.md`.
